@@ -40,13 +40,15 @@ class Settings(BaseSettings):
     AMAZON_ASSOCIATE_TAG: Optional[str] = None
     AMAZON_DEFAULT_MARKETPLACE: str = "US"
     
-    # Local AI (Ollama / OpenAI-compatible)
-    AI_PROVIDER: str = "ollama" # "ollama" | "openai" | "custom"
+    # High-Speed AI Engine (Groq / OpenAI-compatible endpoint loaded from .env)
+    AI_PROVIDER: str = "openai"
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_BASE_URL: Optional[str] = "https://api.groq.com/openai/v1"
+    OPENAI_MODEL: str = "openai/gpt-oss-120b"
+    
+    # Local Ollama Alternative
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "llama3:latest"
-    OPENAI_API_KEY: Optional[str] = None
-    OPENAI_BASE_URL: Optional[str] = "https://api.openai.com/v1"
-    OPENAI_MODEL: str = "gpt-4o-mini"
     
     # CORS
     CORS_ORIGINS: List[str] = [
