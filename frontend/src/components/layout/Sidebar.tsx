@@ -61,7 +61,7 @@ const navigationGroups = [
   {
     title: 'Workspace & Operations',
     items: [
-      { name: 'Projects', href: '/projects', icon: FolderKanban },
+      { name: 'Upcoming Projects', href: '/projects', icon: FolderKanban },
       { name: 'Watchlist & Alerts', href: '/watchlist', icon: Bookmark },
       { name: 'Reports & History', href: '/reports', icon: BarChart3 },
       { name: 'Settings & Diagnostics', href: '/settings', icon: Settings },

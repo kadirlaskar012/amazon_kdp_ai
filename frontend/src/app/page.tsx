@@ -6,7 +6,7 @@ import {
   Search, Sparkles, Trophy, KeyRound, BookOpen, ShieldCheck, 
   ExternalLink, Copy, Check, ArrowRight, Loader2, Star, 
   DollarSign, BarChart3, Layers, Zap, Info, RotateCcw, Download,
-  Globe2, CheckCircle2, TrendingUp
+  Globe2, CheckCircle2, TrendingUp, FolderPlus, FolderKanban
 } from 'lucide-react';
 import { StatusBadge } from '@/components/data/StatusBadge';
 import { api } from '@/lib/api';
@@ -28,11 +28,43 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'territories' | 'books' | 'keywords' | 'concepts' | 'seo'>('overview');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isAddingProject, setIsAddingProject] = useState(false);
+  const [isProjectAdded, setIsProjectAdded] = useState(false);
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const handleAddToUpcomingProject = async () => {
+    if (!blueprint) return;
+    setIsAddingProject(true);
+    try {
+      await api.createProject({
+        title: blueprint.seo_title || `${blueprint.keyword.charAt(0).toUpperCase() + blueprint.keyword.slice(1)} KDP Project`,
+        niche: blueprint.keyword,
+        marketplace: blueprint.marketplace || 'US',
+        target_audience: blueprint.concepts?.[0]?.target_audience || 'KDP Readers',
+        status: 'PENDING',
+        seo_data_json: JSON.stringify(blueprint),
+        cover_prompt_json: JSON.stringify({
+          angle: blueprint.concepts?.[0]?.angle || '',
+          hook: blueprint.concepts?.[0]?.differentiation_hook || ''
+        }),
+        ranking_strategy_json: JSON.stringify({
+          verdict: blueprint.feasibility_verdict,
+          avg_reviews: blueprint.avg_reviews,
+          recommended_price: blueprint.recommended_price_sweetspot
+        }),
+        notes: `Saved from Master Research for "${blueprint.keyword}". Feasibility: ${blueprint.feasibility_title}.`
+      });
+      setIsProjectAdded(true);
+      setTimeout(() => setIsProjectAdded(false), 5000);
+    } catch (e) {
+      console.error('Failed to add project:', e);
+    }
+    setIsAddingProject(false);
   };
 
   const handleRunMasterResearch = async (searchKw?: string) => {
@@ -193,8 +225,8 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Quick Key Metrics */}
-              <div className="flex items-center gap-3">
+              {/* Quick Key Metrics & Add to Upcoming Project */}
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="bg-slate-950/80 px-4 py-2.5 rounded-2xl border border-slate-800 text-center">
                   <span className="text-[10px] text-slate-400 uppercase font-bold block">Review Barrier</span>
                   <span className="text-base font-extrabold text-amber-400">{blueprint.avg_reviews ? blueprint.avg_reviews.toLocaleString() : '0'} avg</span>
@@ -206,6 +238,45 @@ export default function DashboardPage() {
                   <span className="text-base font-extrabold text-emerald-400">
                     {blueprint.is_global ? `$${blueprint.avg_price?.toFixed(2)}` : blueprint.recommended_price_sweetspot}
                   </span>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <button
+                    onClick={handleAddToUpcomingProject}
+                    disabled={isAddingProject || isProjectAdded}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-lg cursor-pointer ${
+                      isProjectAdded
+                        ? 'bg-emerald-500 text-slate-950 shadow-emerald-500/25'
+                        : 'bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 shadow-amber-500/20 hover:scale-[1.02]'
+                    } disabled:opacity-80`}
+                  >
+                    {isProjectAdded ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-slate-950" />
+                        <span>Saved to Upcoming Projects!</span>
+                      </>
+                    ) : isAddingProject ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        <span>Saving Blueprint...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FolderPlus className="w-4 h-4 text-slate-950" />
+                        <span>📌 Add to Upcoming Projects</span>
+                      </>
+                    )}
+                  </button>
+
+                  {isProjectAdded && (
+                    <Link
+                      href="/projects"
+                      className="text-[11px] text-sky-400 hover:underline flex items-center justify-center gap-1 font-semibold"
+                    >
+                      <span>Open Upcoming Projects</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

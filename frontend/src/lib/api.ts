@@ -126,9 +126,10 @@ export const api = {
     fetchJson<any>('/strategy/how-to-rank', { method: 'POST', body: JSON.stringify(data) }),
 
   // Projects
-  getProjects: () => fetchJson<any[]>('/projects'),
+  getProjects: (status?: string) => fetchJson<any[]>(`/projects${status ? `?status=${status}` : ''}`),
   createProject: (data: any) => fetchJson<any>('/projects', { method: 'POST', body: JSON.stringify(data) }),
   getProject: (id: number) => fetchJson<any>(`/projects/${id}`),
+  updateProjectStatus: (id: number, status: string) => fetchJson<any>(`/projects/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   updateProject: (id: number, data: any) => fetchJson<any>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteProject: (id: number) => fetchJson<any>(`/projects/${id}`, { method: 'DELETE' }),
 

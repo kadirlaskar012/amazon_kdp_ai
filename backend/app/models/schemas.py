@@ -353,6 +353,14 @@ class ProjectCreateRequest(BaseModel):
     niche: str
     target_audience: Optional[str] = None
     marketplace: str = "US"
+    status: Optional[str] = "PENDING" # PENDING, IN_PROGRESS, DONE
+    seo_data_json: Optional[str] = "{}"
+    cover_prompt_json: Optional[str] = "{}"
+    ranking_strategy_json: Optional[str] = "{}"
+    notes: Optional[str] = ""
+
+class ProjectStatusUpdateRequest(BaseModel):
+    status: str # PENDING, IN_PROGRESS, DONE
 
 class ProjectSchema(BaseModel):
     id: int
