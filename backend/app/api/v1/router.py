@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from backend.app.api.v1.endpoints import (
     books, keywords, competition, trends, events, ideas, seo, cover, strategy,
-    projects, watchlist, reports, settings as settings_endpoint, logs
+    projects, watchlist, reports, settings as settings_endpoint, logs, master
 )
 from backend.app.models.schemas import MarketplaceSchema
 
@@ -25,6 +25,7 @@ MARKETPLACES_LIST = [
 async def list_marketplaces():
     return [MarketplaceSchema(**m) for m in MARKETPLACES_LIST]
 
+api_router.include_router(master.router, prefix="/master", tags=["Master Blueprint"])
 api_router.include_router(books.router, prefix="/books", tags=["Books"])
 api_router.include_router(keywords.router, prefix="/keywords", tags=["Keywords"])
 api_router.include_router(competition.router, prefix="/competition", tags=["Competition"])

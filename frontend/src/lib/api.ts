@@ -25,6 +25,10 @@ async function fetchJson<T>(endpoint: string, options: RequestInit = {}): Promis
 }
 
 export const api = {
+  // 1-Click Master Research
+  runMasterBlueprint: (keyword: string, marketplace: string = 'US') =>
+    fetchJson<any>('/master/blueprint', { method: 'POST', body: JSON.stringify({ keyword, marketplace }) }),
+
   // Marketplaces & Health
   getMarketplaces: () => fetchJson<any[]>('/marketplaces'),
   
