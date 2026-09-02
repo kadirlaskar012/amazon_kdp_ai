@@ -21,7 +21,7 @@ const QUICK_SUGGESTIONS = [
 ];
 
 export default function DashboardPage() {
-  const [keyword, setKeyword] = useState('kids book');
+  const [keyword, setKeyword] = useState('');
   const [marketplace, setMarketplace] = useState('GLOBAL');
   const [isLoading, setIsLoading] = useState(false);
   const [blueprint, setBlueprint] = useState<any | null>(null);

@@ -8,20 +8,18 @@ import { api } from '@/lib/api';
 import { CoverAnalysisResponse } from '@/lib/types';
 
 export default function CoverIntelligencePage() {
-  const [keyword, setKeyword] = useState('mindfulness coloring book for adults');
+  const [keyword, setKeyword] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
   const [marketplace, setMarketplace] = useState('US');
   const [analysis, setAnalysis] = useState<CoverAnalysisResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
-  useEffect(() => {
-    runCoverAnalysis();
-  }, []);
-
   const runCoverAnalysis = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!keyword.trim()) return;
 
+    setHasSearched(true);
     setIsLoading(true);
     try {
       const res = await api.getCoverIntelligence({ keyword, marketplace });
@@ -178,6 +176,14 @@ export default function CoverIntelligencePage() {
               {analysis.recommended_cover_prompt}
             </div>
           </div>
+        </div>
+      ) : !hasSearched ? (
+        <div className="py-20 text-center space-y-3">
+          <Palette className="w-12 h-12 text-fuchsia-400/50 mx-auto" />
+          <h3 className="text-sm font-bold text-white">Ready to Analyze Cover Patterns</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Enter a book keyword above and click &quot;Analyze Cover Patterns&quot; to inspect visual density, colors, and typography patterns.
+          </p>
         </div>
       ) : (
         <div className="py-16 text-center text-xs text-slate-400">

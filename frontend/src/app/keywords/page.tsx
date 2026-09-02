@@ -9,7 +9,8 @@ import { api } from '@/lib/api';
 import { Keyword } from '@/lib/types';
 
 export default function KeywordResearchPage() {
-  const [seedKeyword, setSeedKeyword] = useState('mindfulness coloring book');
+  const [seedKeyword, setSeedKeyword] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
   const [marketplace, setMarketplace] = useState('US');
   const [expandDepth, setExpandDepth] = useState(1);
   const [includeQuestions, setIncludeQuestions] = useState(true);
@@ -21,14 +22,11 @@ export default function KeywordResearchPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [savedKeyword, setSavedKeyword] = useState<string | null>(null);
 
-  useEffect(() => {
-    handleResearch();
-  }, []);
-
   const handleResearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!seedKeyword.trim()) return;
 
+    setHasSearched(true);
     setIsLoading(true);
     try {
       const res = await api.researchKeywords({
@@ -233,9 +231,17 @@ export default function KeywordResearchPage() {
               </tbody>
             </table>
           </div>
+        ) : !hasSearched ? (
+          <div className="py-20 text-center space-y-3">
+            <KeyRound className="w-12 h-12 text-amber-400/50 mx-auto" />
+            <h3 className="text-sm font-bold text-white">Ready to Discover Amazon Keywords</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              Type any keyword seed in the input above and click &quot;Discover Keywords&quot; to fetch live Amazon autocomplete suggestions.
+            </p>
+          </div>
         ) : (
           <div className="py-16 text-center text-xs text-slate-400">
-            Live data unavailable.
+            No keywords found for &quot;{seedKeyword}&quot;. Try another term.
           </div>
         )}
       </div>

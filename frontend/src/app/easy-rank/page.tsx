@@ -11,22 +11,26 @@ import { Keyword } from '@/lib/types';
 
 function EasyRankContent() {
   const searchParams = useSearchParams();
-  const seedParam = searchParams.get('seed') || 'puzzle book';
+  const seedParam = searchParams.get('seed') || '';
 
   const [seed, setSeed] = useState(seedParam);
+  const [hasSearched, setHasSearched] = useState(Boolean(seedParam));
   const [marketplace, setMarketplace] = useState('US');
   const [gems, setGems] = useState<Keyword[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [dataStatus, setDataStatus] = useState('LIVE');
 
   useEffect(() => {
-    loadEasyRankGems();
-  }, []);
+    if (seedParam) {
+      loadEasyRankGems();
+    }
+  }, [seedParam]);
 
   const loadEasyRankGems = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!seed.trim()) return;
 
+    setHasSearched(true);
     setIsLoading(true);
     try {
       const res = await api.getEasyRankKeywords({
@@ -129,6 +133,14 @@ function EasyRankContent() {
                 </Link>
               </div>
             ))}
+          </div>
+        ) : !hasSearched ? (
+          <div className="py-20 text-center space-y-3">
+            <Sparkles className="w-12 h-12 text-emerald-400/50 mx-auto" />
+            <h3 className="text-sm font-bold text-white">Ready to Uncover Easy-Rank Keywords</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              Enter a seed keyword above and click &quot;Discover Easy-Rank Gems&quot; to filter low-competition search phrases.
+            </p>
           </div>
         ) : (
           <div className="py-16 text-center text-xs text-slate-400">

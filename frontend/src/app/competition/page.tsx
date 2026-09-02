@@ -13,21 +13,25 @@ import { api } from '@/lib/api';
 
 function CompetitionContent() {
   const searchParams = useSearchParams();
-  const initialNiche = searchParams.get('niche') || 'mandala coloring book for adults';
+  const initialNiche = searchParams.get('niche') || '';
 
   const [keyword, setKeyword] = useState(initialNiche);
+  const [hasSearched, setHasSearched] = useState(Boolean(initialNiche));
   const [marketplace, setMarketplace] = useState('US');
   const [analysis, setAnalysis] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    runAnalysis();
-  }, []);
+    if (initialNiche) {
+      runAnalysis();
+    }
+  }, [initialNiche]);
 
   const runAnalysis = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!keyword.trim()) return;
 
+    setHasSearched(true);
     setIsLoading(true);
     try {
       const res = await api.analyzeCompetition({
@@ -228,9 +232,17 @@ function CompetitionContent() {
             </div>
           </div>
         </div>
+      ) : !hasSearched ? (
+        <div className="py-20 text-center space-y-3">
+          <Swords className="w-12 h-12 text-rose-400/50 mx-auto" />
+          <h3 className="text-sm font-bold text-white">Ready to Analyze Competitor Barrier</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Type any book niche or keyword above and click &quot;Analyze Niche&quot; to inspect real competitor review barriers and sales velocity.
+          </p>
+        </div>
       ) : (
         <div className="py-16 text-center text-xs text-slate-400">
-          Live competitor data unavailable.
+          Live competitor data unavailable for &quot;{keyword}&quot;.
         </div>
       )}
 

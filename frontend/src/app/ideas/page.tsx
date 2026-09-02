@@ -14,9 +14,10 @@ import { BookConcept } from '@/lib/types';
 
 function BookIdeaContent() {
   const searchParams = useSearchParams();
-  const initialNiche = searchParams.get('niche') || 'dinosaur coloring book';
+  const initialNiche = searchParams.get('niche') || '';
 
   const [niche, setNiche] = useState(initialNiche);
+  const [hasSearched, setHasSearched] = useState(Boolean(initialNiche));
   const [targetAudience, setTargetAudience] = useState('Kids Ages 4-8');
   const [bookType, setBookType] = useState('Coloring Book');
   const [marketplace, setMarketplace] = useState('US');
@@ -31,13 +32,16 @@ function BookIdeaContent() {
   const [sortBy, setSortBy] = useState<'score_desc' | 'score_asc' | 'title_asc' | 'title_desc'>('score_desc');
 
   useEffect(() => {
-    generateConcepts();
-  }, []);
+    if (initialNiche) {
+      generateConcepts();
+    }
+  }, [initialNiche]);
 
   const generateConcepts = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!niche.trim()) return;
 
+    setHasSearched(true);
     setIsLoading(true);
     try {
       const res = await api.generateBookIdeas({

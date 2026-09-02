@@ -11,7 +11,8 @@ import { EvidencePanel } from '@/components/data/EvidencePanel';
 import { api } from '@/lib/api';
 
 export default function WhatToPublishPage() {
-  const [themePrompt, setThemePrompt] = useState('kids activity and coloring books');
+  const [themePrompt, setThemePrompt] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
   const [marketplace, setMarketplace] = useState('US');
   const [rankedOpportunities, setRankedOpportunities] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -22,14 +23,11 @@ export default function WhatToPublishPage() {
   const [minScoreFilter, setMinScoreFilter] = useState(0);
   const [sortBy, setSortBy] = useState<'rank_asc' | 'score_desc' | 'score_asc' | 'comp_asc'>('rank_asc');
 
-  useEffect(() => {
-    runRecommendationPipeline();
-  }, []);
-
   const runRecommendationPipeline = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!themePrompt.trim()) return;
 
+    setHasSearched(true);
     setIsLoading(true);
     try {
       const res = await api.whatShouldIPublish(themePrompt, marketplace);
@@ -280,6 +278,14 @@ export default function WhatToPublishPage() {
           >
             Reset Filters
           </button>
+        </div>
+      ) : !hasSearched ? (
+        <div className="py-20 text-center space-y-3 glass-panel rounded-3xl border border-slate-800">
+          <Sparkles className="w-12 h-12 text-amber-400/50 mx-auto" />
+          <h3 className="text-sm font-bold text-white">Ready to Rank Top Publishing Opportunities</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Type your broad niche, theme, or category above and click &quot;Run Opportunity Ranking Pipeline&quot; to discover top gaps.
+          </p>
         </div>
       ) : (
         <div className="py-16 text-center text-xs text-slate-400">

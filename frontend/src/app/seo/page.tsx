@@ -13,10 +13,10 @@ export default function SEOStudioPage() {
   const [activeTab, setActiveTab] = useState<'titles' | 'description' | 'backend'>('titles');
 
   // Titles State
-  const [niche, setNiche] = useState('Mindfulness Coloring Book');
-  const [primaryKeyword, setPrimaryKeyword] = useState('mindfulness coloring book for adults');
-  const [secondaryKeywords, setSecondaryKeywords] = useState('stress relief, calming patterns');
-  const [targetAudience, setTargetAudience] = useState('Adults & Teens');
+  const [niche, setNiche] = useState('');
+  const [primaryKeyword, setPrimaryKeyword] = useState('');
+  const [secondaryKeywords, setSecondaryKeywords] = useState('');
+  const [targetAudience, setTargetAudience] = useState('');
   const [titleOptions, setTitleOptions] = useState<SEOTitleOption[]>([]);
   const [isGeneratingTitles, setIsGeneratingTitles] = useState(false);
 
@@ -27,16 +27,16 @@ export default function SEOStudioPage() {
   const [sortBy, setSortBy] = useState<'score_desc' | 'score_asc' | 'readability_desc' | 'length_asc'>('score_desc');
 
   // Description State
-  const [descTitle, setDescTitle] = useState('Mindfulness Coloring Book for Adults');
-  const [descSubtitle, setDescSubtitle] = useState('50+ Calming Patterns for Relaxation & Stress Relief');
+  const [descTitle, setDescTitle] = useState('');
+  const [descSubtitle, setDescSubtitle] = useState('');
   const [descriptionResult, setDescriptionResult] = useState<SEODescriptionResponse | null>(null);
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
 
   // Backend Keywords State
-  const [backendNiche, setBackendNiche] = useState('Coloring Book');
-  const [backendPk, setBackendPk] = useState('mindfulness coloring book');
-  const [backendSec, setBackendSec] = useState('stress relief, relaxing art, anxiety relief');
-  const [titleWords, setTitleWords] = useState('mindfulness coloring book for adults 50 calming patterns');
+  const [backendNiche, setBackendNiche] = useState('');
+  const [backendPk, setBackendPk] = useState('');
+  const [backendSec, setBackendSec] = useState('');
+  const [titleWords, setTitleWords] = useState('');
   const [backendResult, setBackendResult] = useState<BackendKeywordsResponse | null>(null);
   const [isGeneratingBackend, setIsGeneratingBackend] = useState(false);
 
@@ -183,7 +183,8 @@ export default function SEOStudioPage() {
                   type="text"
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  placeholder="e.g. Coloring Book"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
                 />
               </div>
               <div>
@@ -192,7 +193,8 @@ export default function SEOStudioPage() {
                   type="text"
                   value={primaryKeyword}
                   onChange={(e) => setPrimaryKeyword(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  placeholder="e.g. mindfulness coloring book"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
                 />
               </div>
               <div>
@@ -201,7 +203,8 @@ export default function SEOStudioPage() {
                   type="text"
                   value={secondaryKeywords}
                   onChange={(e) => setSecondaryKeywords(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  placeholder="e.g. stress relief, calming patterns"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
                 />
               </div>
               <div className="flex items-end">

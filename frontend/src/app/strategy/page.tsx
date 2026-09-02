@@ -10,10 +10,11 @@ import { RankingStrategyResponse } from '@/lib/types';
 
 function RankingStrategyContent() {
   const searchParams = useSearchParams();
-  const initialNiche = searchParams.get('niche') || 'mindfulness coloring book';
+  const initialNiche = searchParams.get('niche') || '';
 
   const [niche, setNiche] = useState(initialNiche);
-  const [primaryKeyword, setPrimaryKeyword] = useState('mindfulness coloring book for adults');
+  const [hasSearched, setHasSearched] = useState(Boolean(initialNiche));
+  const [primaryKeyword, setPrimaryKeyword] = useState('');
   const [targetPrice, setTargetPrice] = useState('8.99');
   const [marketplace, setMarketplace] = useState('US');
 
@@ -21,13 +22,16 @@ function RankingStrategyContent() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    generateStrategy();
-  }, []);
+    if (initialNiche) {
+      generateStrategy();
+    }
+  }, [initialNiche]);
 
   const generateStrategy = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!niche.trim()) return;
 
+    setHasSearched(true);
     setIsLoading(true);
     try {
       const res = await api.getRankingStrategy({
@@ -177,6 +181,14 @@ function RankingStrategyContent() {
               <p className="text-slate-200 leading-relaxed">{strategy.monitoring_strategy}</p>
             </div>
           </div>
+        </div>
+      ) : !hasSearched ? (
+        <div className="py-20 text-center space-y-3 glass-panel rounded-3xl border border-slate-800">
+          <Target className="w-12 h-12 text-sky-400/50 mx-auto" />
+          <h3 className="text-sm font-bold text-white">Ready to Build KDP Ranking Strategy</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Enter your niche and primary keyword above and click &quot;Generate Strategy&quot; to calculate launch velocity and pricing tactics.
+          </p>
         </div>
       ) : (
         <div className="py-16 text-center text-xs text-slate-400">

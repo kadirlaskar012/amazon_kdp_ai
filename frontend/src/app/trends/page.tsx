@@ -8,27 +8,21 @@ import { api } from '@/lib/api';
 import { TrendSignal } from '@/lib/types';
 
 export default function TrendResearchPage() {
-  const [query, setQuery] = useState('coloring book');
+  const [query, setQuery] = useState('');
   const [marketplace, setMarketplace] = useState('US');
   const [signal, setSignal] = useState<TrendSignal | null>(null);
   const [risingList, setRisingList] = useState<TrendSignal[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    loadTrends();
-  }, []);
+    loadRisingTrends();
+  }, [marketplace]);
 
-  const loadTrends = async () => {
-    setIsLoading(true);
+  const loadRisingTrends = async () => {
     try {
-      const [singleRes, risingRes] = await Promise.all([
-        api.getTrendSignals(query, marketplace),
-        api.getRisingTrends(marketplace)
-      ]);
-      setSignal(singleRes);
+      const risingRes = await api.getRisingTrends(marketplace);
       setRisingList(risingRes.trends || []);
     } catch (e) {}
-    setIsLoading(false);
   };
 
   const handleSearch = async (e: React.FormEvent) => {

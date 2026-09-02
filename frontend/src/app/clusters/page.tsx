@@ -8,20 +8,18 @@ import { api } from '@/lib/api';
 import { Keyword } from '@/lib/types';
 
 export default function KeywordClustersPage() {
-  const [seed, setSeed] = useState('activity book');
+  const [seed, setSeed] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
   const [marketplace, setMarketplace] = useState('US');
   const [clusters, setClusters] = useState<Record<string, Keyword[]>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [dataStatus, setDataStatus] = useState('LIVE');
 
-  useEffect(() => {
-    loadClusters();
-  }, []);
-
   const loadClusters = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!seed.trim()) return;
 
+    setHasSearched(true);
     setIsLoading(true);
     try {
       const res = await api.researchKeywords({
@@ -117,6 +115,14 @@ export default function KeywordClustersPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : !hasSearched ? (
+        <div className="py-20 text-center space-y-3">
+          <Layers className="w-12 h-12 text-sky-400/50 mx-auto" />
+          <h3 className="text-sm font-bold text-white">Ready to Cluster Keywords</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Type any seed term above and click &quot;Cluster Keywords&quot; to semantically group search terms.
+          </p>
         </div>
       ) : (
         <div className="py-16 text-center text-xs text-slate-400">

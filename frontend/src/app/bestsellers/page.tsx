@@ -30,7 +30,8 @@ export default function BestsellersPage() {
   const [avgReviews, setAvgReviews] = useState<number | null>(null);
   const [avgPrice, setAvgPrice] = useState<number | null>(null);
   const [dataStatus, setDataStatus] = useState('LIVE');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
 
   // Sorting & Filtering
   const [searchFilter, setSearchFilter] = useState('');
@@ -38,11 +39,8 @@ export default function BestsellersPage() {
   const [priceRangeFilter, setPriceRangeFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState<'rank_asc' | 'price_asc' | 'price_desc' | 'rating_desc' | 'reviews_desc'>('rank_asc');
 
-  useEffect(() => {
-    loadBestsellers();
-  }, [selectedCategory, marketplace]);
-
   const loadBestsellers = async () => {
+    setHasFetched(true);
     setIsLoading(true);
     try {
       const res = await api.getBestsellers(selectedCategory, marketplace);
@@ -115,7 +113,7 @@ export default function BestsellersPage() {
           </p>
         </div>
 
-        {/* Category Dropdown */}
+        {/* Category Dropdown & Fetch Button */}
         <div className="flex items-center gap-2">
           <select
             value={selectedCategory}
@@ -128,6 +126,15 @@ export default function BestsellersPage() {
               </option>
             ))}
           </select>
+
+          <button
+            onClick={loadBestsellers}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20 disabled:opacity-50"
+          >
+            {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trophy className="w-3.5 h-3.5" />}
+            <span>{isLoading ? 'Fetching...' : 'Explore Best Sellers'}</span>
+          </button>
         </div>
       </div>
 
@@ -284,6 +291,14 @@ export default function BestsellersPage() {
             >
               Reset Filters
             </button>
+          </div>
+        ) : !hasFetched ? (
+          <div className="py-20 text-center space-y-3">
+            <Trophy className="w-12 h-12 text-amber-400/50 mx-auto" />
+            <h3 className="text-sm font-bold text-white">Ready to Explore Amazon Best Sellers</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              Select a category above and click &quot;Explore Best Sellers&quot; to fetch real-time chart rankings.
+            </p>
           </div>
         ) : (
           <div className="py-12 text-center text-xs text-slate-400">

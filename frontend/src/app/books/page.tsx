@@ -15,9 +15,10 @@ import { Book } from '@/lib/types';
 
 function BookFinderContent() {
   const searchParams = useSearchParams();
-  const initialQuery = searchParams.get('q') || 'coloring book for kids';
+  const initialQuery = searchParams.get('q') || '';
 
   const [query, setQuery] = useState(initialQuery);
+  const [hasSearched, setHasSearched] = useState(Boolean(initialQuery));
   const [marketplace, setMarketplace] = useState('US');
   const [category, setCategory] = useState('books');
   const [minBSR, setMinBSR] = useState<string>('');
@@ -39,13 +40,16 @@ function BookFinderContent() {
   const [sortBy, setSortBy] = useState<string>('relevance');
 
   useEffect(() => {
-    handleSearch();
-  }, []);
+    if (initialQuery) {
+      handleSearch();
+    }
+  }, [initialQuery]);
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!query.trim()) return;
 
+    setHasSearched(true);
     setIsLoading(true);
     try {
       const res = await api.searchBooks({
@@ -408,6 +412,14 @@ function BookFinderContent() {
                 ))}
               </tbody>
             </table>
+          </div>
+        ) : !hasSearched ? (
+          <div className="py-20 text-center space-y-3">
+            <Search className="w-12 h-12 text-sky-400/50 mx-auto" />
+            <h3 className="text-sm font-bold text-white">Ready to Search Amazon Books</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              Type your desired book keyword or niche in the search bar above and click &quot;Search Books&quot; to view live Amazon data.
+            </p>
           </div>
         ) : (
           <div className="py-16 text-center space-y-2">
