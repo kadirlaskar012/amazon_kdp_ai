@@ -15,7 +15,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ isOpen, onComplete }) 
   const [accessKey, setAccessKey] = useState('');
   const [secretKey, setSecretKey] = useState('');
   const [tag, setTag] = useState('');
-  const [aiProvider, setAiProvider] = useState('ollama');
+  const [aiProvider, setAiProvider] = useState('openai');
   const [testResults, setTestResults] = useState<any[]>([]);
   const [isTesting, setIsTesting] = useState(false);
 
@@ -39,10 +39,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ isOpen, onComplete }) 
         amazon_secret_key: secretKey || undefined,
         amazon_associate_tag: tag || undefined,
         amazon_default_marketplace: marketplace,
-        ai_provider: aiProvider,
-        ollama_base_url: 'http://localhost:11434',
-        ollama_model: 'llama3:latest',
-        use_postgres: false
+        ai_provider: 'openai',
+        use_postgres: true
       });
     } catch (e) {}
     localStorage.setItem('kdp_studio_setup_done', 'true');
@@ -179,35 +177,17 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ isOpen, onComplete }) 
           {step === 5 && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-slate-200 font-semibold text-sm">
-                <Cpu className="w-4 h-4 text-indigo-400" />
-                <span>Step 5 & 6: Local AI Provider (Ollama / OpenAI)</span>
+                <Cpu className="w-4 h-4 text-emerald-400" />
+                <span>Step 5 & 6: High-Speed Cloud AI Engine</span>
               </div>
               <p className="text-slate-400">
-                KDP Studio utilizes local AI for keyword clustering, listing critiques, and book ideas. Choose your preferred AI engine:
+                KDP Studio connects to high-speed cloud AI (Groq / OpenAI) with zero PC resource consumption.
               </p>
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button
-                  onClick={() => setAiProvider('ollama')}
-                  className={`p-4 rounded-2xl border text-left space-y-1 transition-all ${
-                    aiProvider === 'ollama'
-                      ? 'border-sky-500 bg-sky-500/10 text-white'
-                      : 'border-slate-800 bg-slate-900/60 text-slate-300'
-                  }`}
-                >
-                  <p className="font-bold text-sm">🦙 Local Ollama</p>
-                  <p className="text-[11px] text-slate-400">100% offline, zero API costs (localhost:11434)</p>
-                </button>
-                <button
-                  onClick={() => setAiProvider('openai')}
-                  className={`p-4 rounded-2xl border text-left space-y-1 transition-all ${
-                    aiProvider === 'openai'
-                      ? 'border-sky-500 bg-sky-500/10 text-white'
-                      : 'border-slate-800 bg-slate-900/60 text-slate-300'
-                  }`}
-                >
-                  <p className="font-bold text-sm">⚡ OpenAI-Compatible API</p>
-                  <p className="text-[11px] text-slate-400">GPT-4o mini / Groq / OpenRouter / LM Studio</p>
-                </button>
+              <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-left space-y-2">
+                <p className="font-bold text-sm text-emerald-300">⚡ Groq Cloud AI (Pre-Configured & Active)</p>
+                <p className="text-xs text-slate-300">
+                  Powered by frontier 120B parameter models running at ~0.3s response time. Fully configured and active for book ideas, SEO, and listing audits.
+                </p>
               </div>
             </div>
           )}

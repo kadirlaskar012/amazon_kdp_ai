@@ -411,13 +411,11 @@ class SettingsSchema(BaseModel):
     amazon_secret_key: Optional[str] = None
     amazon_associate_tag: Optional[str] = None
     amazon_default_marketplace: str = "US"
-    ai_provider: str = "ollama"
-    ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3:latest"
+    ai_provider: str = "openai"
     openai_api_key: Optional[str] = None
-    openai_base_url: Optional[str] = "https://api.openai.com/v1"
-    openai_model: str = "gpt-4o-mini"
-    use_postgres: bool = False
+    openai_base_url: Optional[str] = "https://api.groq.com/openai/v1"
+    openai_model: str = "openai/gpt-oss-120b"
+    use_postgres: bool = True
     postgres_url: Optional[str] = None
 
 class ConnectionTestResponse(BaseModel):

@@ -10,7 +10,6 @@ from backend.app.connectors.amazon_live import amazon_live_connector
 from backend.app.connectors.amazon_paapi import amazon_paapi_connector
 from backend.app.connectors.openlibrary import openlibrary_connector
 from backend.app.connectors.google_trends import google_trends_connector
-from backend.app.ai.ollama_client import ollama_client
 from backend.app.ai.openai_client import openai_client
 from backend.app.services.backup_service import backup_service
 
@@ -24,8 +23,6 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
         amazon_associate_tag=settings.AMAZON_ASSOCIATE_TAG,
         amazon_default_marketplace=settings.AMAZON_DEFAULT_MARKETPLACE,
         ai_provider=settings.AI_PROVIDER,
-        ollama_base_url=settings.OLLAMA_BASE_URL,
-        ollama_model=settings.OLLAMA_MODEL,
         openai_api_key=settings.OPENAI_API_KEY,
         openai_base_url=settings.OPENAI_BASE_URL,
         openai_model=settings.OPENAI_MODEL,
@@ -48,11 +45,6 @@ async def update_settings(new_settings: SettingsSchema, db: AsyncSession = Depen
         settings.AMAZON_DEFAULT_MARKETPLACE = new_settings.amazon_default_marketplace
     if new_settings.ai_provider:
         settings.AI_PROVIDER = new_settings.ai_provider
-    if new_settings.ollama_base_url:
-        settings.OLLAMA_BASE_URL = new_settings.ollama_base_url
-        ollama_client.base_url = new_settings.ollama_base_url
-    if new_settings.ollama_model:
-        settings.OLLAMA_MODEL = new_settings.ollama_model
     if new_settings.openai_api_key is not None:
         settings.OPENAI_API_KEY = new_settings.openai_api_key
         openai_client.api_key = new_settings.openai_api_key
@@ -92,19 +84,16 @@ async def test_connector(connector_id: str):
     elif cid == "openlibrary":
         t = await openlibrary_connector.test_connection()
         return ConnectionTestResponse(connector_id=cid, name="Open Library Metadata", **t)
-    elif cid == "ollama":
-        t = await ollama_client.check_health()
-        return ConnectionTestResponse(connector_id=cid, name="Local Ollama AI", **t)
-    elif cid == "openai":
+    elif cid in ["openai", "cloud_ai", "groq"]:
         t = await openai_client.check_health()
-        return ConnectionTestResponse(connector_id=cid, name="OpenAI / Compatible Endpoint", **t)
+        return ConnectionTestResponse(connector_id="cloud_ai", name="Cloud AI Engine (Groq / OpenAI)", **t)
     else:
         raise HTTPException(status_code=400, detail=f"Unknown connector ID: {connector_id}")
 
 @router.get("/test-all")
 async def test_all_connectors():
     results = []
-    c_ids = ["amazon_suggest", "amazon_live", "amazon_paapi", "google_trends", "openlibrary", "ollama", "openai"]
+    c_ids = ["amazon_suggest", "amazon_live", "amazon_paapi", "google_trends", "openlibrary", "openai"]
     for cid in c_ids:
         r = await test_connector(cid)
         results.append(r)

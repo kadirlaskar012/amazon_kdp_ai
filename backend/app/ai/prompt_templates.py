@@ -1,28 +1,17 @@
 import json
 from typing import List, Dict, Any, Optional
-from backend.app.ai.ollama_client import ollama_client
 from backend.app.ai.openai_client import openai_client
 from backend.app.core.config import settings
 
 class PromptTemplates:
-    """Manages evidence-grounded prompts and execution across configured AI providers."""
+    """Manages high-speed cloud AI prompts (Groq / OpenAI) with robust heuristic fallbacks."""
 
     @staticmethod
     async def _execute_ai(prompt: str, system_prompt: str) -> Optional[str]:
-        if settings.AI_PROVIDER == "openai" and openai_client.is_configured():
+        if openai_client.is_configured():
             res = await openai_client.generate_response(prompt, system_prompt)
             if res:
                 return res
-                
-        # Default to local Ollama
-        res = await ollama_client.generate_response(prompt, system_prompt)
-        if res:
-            return res
-            
-        # Fallback to OpenAI if Ollama fails
-        if openai_client.is_configured():
-            return await openai_client.generate_response(prompt, system_prompt)
-            
         return None
 
     @classmethod

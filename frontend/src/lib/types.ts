@@ -255,8 +255,6 @@ export interface AppSettings {
   amazon_associate_tag?: string;
   amazon_default_marketplace: string;
   ai_provider: string;
-  ollama_base_url: string;
-  ollama_model: string;
   openai_api_key?: string;
   openai_base_url?: string;
   openai_model: string;
