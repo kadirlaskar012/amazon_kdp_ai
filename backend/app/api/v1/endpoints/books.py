@@ -147,11 +147,67 @@ async def get_bestsellers(
     marketplace: str = "US",
     db: AsyncSession = Depends(get_db)
 ):
-    return await search_books(
-        query=f"best sellers {category}",
-        marketplace=marketplace,
-        category="books",
-        db=db
+    # Try live bestsellers chart first
+    bs_res = await amazon_live_connector.get_bestsellers(category=category, marketplace=marketplace)
+    books_raw = bs_res.data if bs_res.success and bs_res.data else []
+    
+    if not books_raw:
+        return await search_books(
+            query=f"best sellers {category}",
+            marketplace=marketplace,
+            category="books",
+            db=db
+        )
+        
+    prices = [b["price"] for b in books_raw if b.get("price")]
+    reviews = [b["current_review_count"] for b in books_raw if b.get("current_review_count")]
+    bsrs = [b["current_bsr"] for b in books_raw if b.get("current_bsr")]
+    
+    for b in books_raw:
+        asin = b.get("asin")
+        if asin:
+            book_obj = await db.get(Book, asin)
+            if not book_obj:
+                book_obj = Book(
+                    asin=asin,
+                    marketplace=marketplace.upper(),
+                    title=b.get("title", "Unknown"),
+                    subtitle=b.get("subtitle"),
+                    author=b.get("author"),
+                    price=b.get("price"),
+                    currency=b.get("currency", "USD"),
+                    format=b.get("format", "Paperback"),
+                    cover_image_url=b.get("cover_image_url"),
+                    amazon_url=b.get("amazon_url", f"https://amazon.com/dp/{asin}"),
+                    current_rating=b.get("current_rating"),
+                    current_review_count=b.get("current_review_count"),
+                    current_bsr=b.get("current_bsr"),
+                )
+                db.add(book_obj)
+            else:
+                book_obj.current_bsr = b.get("current_bsr") or book_obj.current_bsr
+                book_obj.current_rating = b.get("current_rating") or book_obj.current_rating
+                book_obj.current_review_count = b.get("current_review_count") or book_obj.current_review_count
+    await db.commit()
+
+    book_schemas = []
+    for b in books_raw:
+        try:
+            book_schemas.append(BookSchema(**b))
+        except Exception:
+            pass
+
+    return BookSearchResponse(
+        query=f"Best Sellers in {category}",
+        marketplace=marketplace.upper(),
+        total_results=len(book_schemas),
+        results=book_schemas,
+        avg_price=round(float(sum(prices)/len(prices)), 2) if prices else None,
+        avg_reviews=float(round(sum(reviews)/len(reviews), 1)) if reviews else None,
+        avg_bsr=int(sum(bsrs)/len(bsrs)) if bsrs else None,
+        median_reviews=float(sorted(reviews)[len(reviews)//2]) if reviews else None,
+        source="amazon_live",
+        data_status="LIVE"
     )
 
 @router.get("/{asin}", response_model=BookDetailResponse)

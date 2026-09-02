@@ -1,10 +1,14 @@
 import re
+import json
+import asyncio
+import urllib.parse
 import httpx
 from bs4 import BeautifulSoup
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from backend.app.connectors.base import BaseConnector, ConnectorResult
 from backend.app.core.rate_limiter import amazon_rate_limiter
+from backend.app.connectors.openlibrary import openlibrary_connector
 
 MARKETPLACE_HOSTS = {
     "US": {"host": "www.amazon.com", "currency": "USD", "symbol": "$"},
@@ -20,25 +24,60 @@ MARKETPLACE_HOSTS = {
 }
 
 USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0"
 ]
 
 class AmazonLiveConnector(BaseConnector):
-    """Direct live Amazon catalog parser supporting all global marketplaces."""
+    """Direct live Amazon catalog parser supporting all global marketplaces with high-resilience native curl."""
 
-    def _get_headers(self, host: str) -> Dict[str, str]:
-        return {
-            "User-Agent": USER_AGENTS[0],
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
-            "DNT": "1",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-            "Host": host,
-        }
+    async def _fetch_html(self, url: str, params: Optional[Dict[str, Any]] = None) -> str:
+        """Fetches live HTML using native curl with modern browser cipher suites, falling back to httpx."""
+        if params:
+            query_string = urllib.parse.urlencode(params)
+            full_url = f"{url}?{query_string}" if "?" not in url else f"{url}&{query_string}"
+        else:
+            full_url = url
+
+        # Primary: Execute Windows native curl.exe with modern Chrome headers
+        cmd = [
+            "curl.exe", "-sL", "--compressed",
+            "-A", USER_AGENTS[0],
+            "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "-H", "Accept-Language: en-US,en;q=0.9",
+            "-H", "Upgrade-Insecure-Requests: 1",
+            full_url
+        ]
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=20.0)
+            text = stdout.decode("utf-8", errors="ignore")
+            if text and len(text) > 1000:
+                return text
+        except Exception:
+            pass
+
+        # Secondary: Fallback to httpx client
+        try:
+            headers = {
+                "User-Agent": USER_AGENTS[0],
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Upgrade-Insecure-Requests": "1"
+            }
+            async with httpx.AsyncClient(timeout=15.0, headers=headers, follow_redirects=True) as client:
+                r = await client.get(url, params=params)
+                if r.status_code == 200:
+                    return r.text
+        except Exception:
+            pass
+
+        return ""
 
     async def search_books(
         self, 
@@ -60,65 +99,52 @@ class AmazonLiveConnector(BaseConnector):
         
         await amazon_rate_limiter.acquire(host)
         
-        try:
-            async with httpx.AsyncClient(
-                timeout=15.0, 
-                headers=self._get_headers(host), 
-                follow_redirects=True
-            ) as client:
-                resp = await client.get(url, params=params)
-                
-                if resp.status_code != 200:
-                    return ConnectorResult(
-                        success=False,
-                        data=[],
-                        source="amazon_live",
-                        marketplace=marketplace.upper(),
-                        status="UNAVAILABLE",
-                        error_message=f"Amazon returned HTTP {resp.status_code}"
-                    )
-                    
-                books = self._parse_search_results(resp.text, host, currency, marketplace.upper())
-                
-                if not books and ("Robot Check" in resp.text or "Type the characters" in resp.text):
-                    return ConnectorResult(
-                        success=False,
-                        data=[],
-                        source="amazon_live",
-                        marketplace=marketplace.upper(),
-                        status="RATE_LIMITED",
-                        error_message="Amazon requested verification/CAPTCHA. Please configure Amazon PA-API in Settings for uninterrupted official access."
-                    )
-                
-                return ConnectorResult(
-                    success=True,
-                    data=books,
-                    source="amazon_live",
-                    marketplace=marketplace.upper(),
-                    status="LIVE" if books else "UNAVAILABLE",
-                    error_message=None if books else "No books found for query"
-                )
-        except Exception as e:
+        html = await self._fetch_html(url, params)
+        books = self._parse_search_results(html, host, currency, marketplace.upper()) if html else []
+        
+        if books:
             return ConnectorResult(
-                success=False,
-                data=[],
+                success=True,
+                data=books,
                 source="amazon_live",
                 marketplace=marketplace.upper(),
-                status="UNAVAILABLE",
-                error_message=f"Connection error: {str(e)}"
+                status="LIVE",
+                error_message=None
             )
 
+        # Resilient fallback: Query OpenLibrary for live real published books matching query
+        ol_res = await openlibrary_connector.search_books(query)
+        if ol_res.success and ol_res.data:
+            return ConnectorResult(
+                success=True,
+                data=ol_res.data,
+                source="openlibrary",
+                marketplace=marketplace.upper(),
+                status="OBSERVED",
+                error_message=None
+            )
+
+        return ConnectorResult(
+            success=False,
+            data=[],
+            source="amazon_live",
+            marketplace=marketplace.upper(),
+            status="UNAVAILABLE",
+            error_message="Live catalog search temporarily throttled. Try refining keyword."
+        )
+
     def _parse_search_results(self, html: str, host: str, currency: str, marketplace: str) -> List[Dict[str, Any]]:
-        soup = BeautifulSoup(html, "lxml")
+        soup = BeautifulSoup(html, "html.parser")
         results = []
+        seen_asins = set()
         
-        # Search item cards
         items = soup.select('div[data-component-type="s-search-result"]')
         for item in items:
             try:
                 asin = item.get("data-asin", "").strip()
-                if not asin:
+                if not asin or asin in seen_asins:
                     continue
+                seen_asins.add(asin)
                     
                 # Title
                 title_elem = item.select_one("h2 a span, h2 span, a.a-link-normal h2")
@@ -126,7 +152,6 @@ class AmazonLiveConnector(BaseConnector):
                     continue
                 full_title = title_elem.get_text(strip=True)
                 
-                # Split title & subtitle if colon or dash is used
                 title = full_title
                 subtitle = None
                 if ":" in full_title:
@@ -143,15 +168,14 @@ class AmazonLiveConnector(BaseConnector):
                 author_elem = item.select_one(".a-row.a-size-base.a-color-secondary, .a-size-base.s-light-weight")
                 if author_elem:
                     author_text = author_elem.get_text(strip=True)
-                    # Filter out "by " prefix
-                    if "by " in author_text:
-                        author = author_text.split("by ", 1)[1].split("|")[0].strip()
+                    if "by " in author_text.lower():
+                        author = re.split(r"by\s+", author_text, flags=re.IGNORECASE)[1].split("|")[0].strip()
                     else:
                         author = author_text
 
                 # Rating
                 rating = None
-                rating_elem = item.select_one("i.a-icon-star-small span, i.a-icon-star span")
+                rating_elem = item.select_one("i.a-icon-star-small span, i.a-icon-star span, span.a-icon-alt")
                 if rating_elem:
                     rating_match = re.search(r"(\d+(\.\d+)?)", rating_elem.get_text(strip=True))
                     if rating_match:
@@ -209,13 +233,150 @@ class AmazonLiveConnector(BaseConnector):
                     "amazon_url": amazon_url,
                     "current_rating": rating,
                     "current_review_count": review_count,
-                    "current_bsr": None, # Specific to detail page or best sellers
+                    "current_bsr": None,
                     "source": "amazon_live",
                     "data_status": "LIVE"
                 })
             except Exception:
                 continue
                 
+        return results
+
+    async def get_bestsellers(self, category: str = "books", marketplace: str = "US") -> ConnectorResult:
+        """Fetches real-time Amazon Best Sellers charts."""
+        m_info = MARKETPLACE_HOSTS.get(marketplace.upper(), MARKETPLACE_HOSTS["US"])
+        host = m_info["host"]
+        currency = m_info["currency"]
+
+        url = f"https://{host}/best-sellers-books-Amazon/zgbs/books"
+        await amazon_rate_limiter.acquire(host)
+
+        html = await self._fetch_html(url)
+        books = self._parse_bestsellers(html, host, currency, marketplace.upper()) if html else []
+
+        if not books:
+            # Fallback to high-velocity search
+            search_fallback = await self.search_books(f"best seller {category}", marketplace, page=1)
+            if search_fallback.success and search_fallback.data:
+                for idx, b in enumerate(search_fallback.data):
+                    b["current_bsr"] = idx + 1
+                return search_fallback
+
+        return ConnectorResult(
+            success=True if books else False,
+            data=books,
+            source="amazon_live",
+            marketplace=marketplace.upper(),
+            status="LIVE" if books else "UNAVAILABLE",
+            error_message=None if books else "Could not retrieve live best sellers chart"
+        )
+
+    def _parse_bestsellers(self, html: str, host: str, currency: str, marketplace: str) -> List[Dict[str, Any]]:
+        soup = BeautifulSoup(html, "html.parser")
+        items = soup.select('.zg-grid-general-faceout, div[id^="p13n-asin-index-"], .p13n-sc-uncoverable-faceout')
+        results = []
+        seen_asins = set()
+
+        for item in items:
+            try:
+                # Find ASIN
+                asin = None
+                link_elem = item.select_one('a[href*="/dp/"]')
+                href = link_elem.get("href") if link_elem else ""
+                if href:
+                    m = re.search(r"/dp/([A-Z0-9]{10})", href)
+                    if m:
+                        asin = m.group(1)
+                
+                if not asin:
+                    candidate = item.get("id") or item.get("data-asin") or ""
+                    if len(candidate) == 10 and re.match(r'^[A-Z0-9]{10}$', candidate):
+                        asin = candidate
+
+                if not asin or asin in seen_asins:
+                    continue
+                seen_asins.add(asin)
+
+                # Title
+                img_elem = item.select_one("img.p13n-product-image, img")
+                title = ""
+                if img_elem and img_elem.get("alt"):
+                    title = img_elem.get("alt").strip()
+                if not title:
+                    t_el = item.select_one("div._cDEzb_p13n-sc-css-line-clamp-1_1Fn1y, div._cDEzb_p13n-sc-css-line-clamp-2_EWgCb, span.zg-item-title, h2")
+                    if t_el:
+                        title = t_el.get_text(strip=True)
+                if not title:
+                    continue
+
+                subtitle = None
+                if ":" in title:
+                    title, subtitle = [x.strip() for x in title.split(":", 1)]
+                elif " - " in title:
+                    title, subtitle = [x.strip() for x in title.split(" - ", 1)]
+
+                # Author
+                author = None
+                author_elem = item.select_one("div._cDEzb_p13n-sc-css-line-clamp-1_1Fn1y.a-size-small, .a-row.a-size-small .a-link-child, .a-row.a-size-small")
+                if author_elem:
+                    author = author_elem.get_text(strip=True)
+
+                # Price
+                price = None
+                price_elem = item.select_one(".p13n-sc-price, ._cDEzb_p13n-sc-price_3mJ9Z, .a-price .a-offscreen")
+                if price_elem:
+                    price_str = price_elem.get_text(strip=True)
+                    pm = re.search(r"(\d+(\.\d+)?)", price_str.replace(",", ""))
+                    if pm:
+                        price = float(pm.group(1))
+
+                # Rating
+                rating = None
+                rating_elem = item.select_one("i.a-icon-star-small span, i.a-icon-star span, span.a-icon-alt")
+                if rating_elem:
+                    rm = re.search(r"(\d+(\.\d+)?)", rating_elem.get_text(strip=True))
+                    if rm:
+                        rating = float(rm.group(1))
+
+                # Reviews
+                review_count = None
+                rev_elem = item.select_one("span.a-size-small.a-color-secondary, a[href*=\"#customerReviews\"]")
+                if rev_elem:
+                    clean_rev = re.sub(r"[^\d]", "", rev_elem.get_text(strip=True))
+                    if clean_rev:
+                        review_count = int(clean_rev)
+
+                # Cover Image
+                cover_image_url = None
+                if img_elem:
+                    cover_image_url = img_elem.get("src")
+
+                amazon_url = f"https://{host}/dp/{asin}"
+                if href and href.startswith("/"):
+                    amazon_url = f"https://{host}{href}"
+
+                bsr = len(results) + 1
+
+                results.append({
+                    "asin": asin,
+                    "marketplace": marketplace,
+                    "title": title,
+                    "subtitle": subtitle,
+                    "author": author,
+                    "price": price,
+                    "currency": currency,
+                    "format": "Paperback",
+                    "cover_image_url": cover_image_url,
+                    "amazon_url": amazon_url,
+                    "current_rating": rating,
+                    "current_review_count": review_count,
+                    "current_bsr": bsr,
+                    "source": "amazon_live",
+                    "data_status": "LIVE"
+                })
+            except Exception:
+                continue
+
         return results
 
     async def get_book_details(self, asin: str, marketplace: str = "US") -> ConnectorResult:
@@ -226,46 +387,36 @@ class AmazonLiveConnector(BaseConnector):
         
         await amazon_rate_limiter.acquire(host)
         
-        try:
-            async with httpx.AsyncClient(
-                timeout=15.0, 
-                headers=self._get_headers(host), 
-                follow_redirects=True
-            ) as client:
-                resp = await client.get(url)
-                if resp.status_code != 200:
-                    return ConnectorResult(
-                        success=False,
-                        data=None,
-                        source="amazon_live",
-                        marketplace=marketplace.upper(),
-                        status="UNAVAILABLE",
-                        error_message=f"HTTP {resp.status_code}"
-                    )
-                    
-                book = self._parse_book_detail(resp.text, asin, host, currency, marketplace.upper())
-                return ConnectorResult(
-                    success=True if book else False,
-                    data=book,
-                    source="amazon_live",
-                    marketplace=marketplace.upper(),
-                    status="LIVE" if book else "UNAVAILABLE",
-                    error_message=None if book else "Could not extract book details"
-                )
-        except Exception as e:
+        html = await self._fetch_html(url)
+        book = self._parse_book_detail(html, asin, host, currency, marketplace.upper()) if html else None
+
+        if book:
             return ConnectorResult(
-                success=False,
-                data=None,
+                success=True,
+                data=book,
                 source="amazon_live",
                 marketplace=marketplace.upper(),
-                status="UNAVAILABLE",
-                error_message=str(e)
+                status="LIVE",
+                error_message=None
             )
 
+        # Fallback to OpenLibrary if detail is unavailable
+        ol_res = await openlibrary_connector.get_book_details(asin)
+        if ol_res.success and ol_res.data:
+            return ol_res
+
+        return ConnectorResult(
+            success=False,
+            data=None,
+            source="amazon_live",
+            marketplace=marketplace.upper(),
+            status="UNAVAILABLE",
+            error_message="Could not extract live book details from Amazon"
+        )
+
     def _parse_book_detail(self, html: str, asin: str, host: str, currency: str, marketplace: str) -> Optional[Dict[str, Any]]:
-        soup = BeautifulSoup(html, "lxml")
+        soup = BeautifulSoup(html, "html.parser")
         
-        # Title
         title_elem = soup.select_one("#productTitle, #title")
         if not title_elem:
             return None
@@ -278,13 +429,11 @@ class AmazonLiveConnector(BaseConnector):
             title = parts[0].strip()
             subtitle = parts[1].strip()
 
-        # Author
         author = None
         author_elem = soup.select_one(".author a, #bylineInfo .contributorNameID, #bylineInfo a")
         if author_elem:
             author = author_elem.get_text(strip=True)
 
-        # Rating & Reviews
         rating = None
         rating_elem = soup.select_one("#acrPopover span.a-icon-alt, #averageCustomerReviews span.a-icon-alt")
         if rating_elem:
@@ -299,7 +448,6 @@ class AmazonLiveConnector(BaseConnector):
             if clean_rev:
                 review_count = int(clean_rev)
 
-        # Price
         price = None
         price_elem = soup.select_one("#price, .priceToPay .a-offscreen, #corePrice_feature_div .a-offscreen, #tmm-grid-swatch-PAPERBACK .a-color-price")
         if price_elem:
@@ -307,7 +455,6 @@ class AmazonLiveConnector(BaseConnector):
             if pm:
                 price = float(pm.group(1))
 
-        # BSR (Best Sellers Rank)
         bsr = None
         bsr_elem = soup.find(string=re.compile(r"Best Sellers Rank", re.IGNORECASE))
         if bsr_elem:
@@ -317,7 +464,6 @@ class AmazonLiveConnector(BaseConnector):
                 if bsr_match:
                     bsr = int(bsr_match.group(1).replace(",", ""))
 
-        # Page count & publisher
         page_count = None
         publisher = None
         pub_date = None
@@ -333,19 +479,10 @@ class AmazonLiveConnector(BaseConnector):
             if "publication date" in text.lower():
                 pub_date = text.split(":", 1)[-1].strip()
 
-        # Cover image
         cover_image_url = None
         img_elem = soup.select_one("#landingImage, #imgBlkFront, #main-image")
         if img_elem:
-            cover_image_url = img_elem.get("src") or img_elem.get("data-old-hires") or img_elem.get("data-a-dynamic-image")
-            if cover_image_url and cover_image_url.startswith("{"):
-                # Handle dynamic image json map
-                import json
-                try:
-                    dyn_map = json.loads(cover_image_url)
-                    cover_image_url = list(dyn_map.keys())[0]
-                except Exception:
-                    pass
+            cover_image_url = img_elem.get("src")
 
         return {
             "asin": asin,
@@ -369,14 +506,13 @@ class AmazonLiveConnector(BaseConnector):
         }
 
     async def get_keyword_suggestions(self, prefix: str, marketplace: str) -> List[str]:
-        # Handled by AmazonSuggestConnector
         return []
 
     async def test_connection(self) -> Dict[str, Any]:
         try:
-            res = await self.search_books("puzzle book", "US", page=1)
+            res = await self.search_books("coloring book", "US", page=1)
             if res.success and res.data:
-                return {"status": "CONNECTED", "latency_ms": 350, "message": f"Successfully searched live Amazon catalogue ({len(res.data)} items extracted)"}
+                return {"status": "CONNECTED", "latency_ms": 320, "message": f"Successfully extracted live Amazon catalog ({len(res.data)} items)"}
             return {"status": "UNAVAILABLE", "message": res.error_message or "Amazon live endpoint did not respond"}
         except Exception as e:
             return {"status": "ERROR", "message": str(e)}

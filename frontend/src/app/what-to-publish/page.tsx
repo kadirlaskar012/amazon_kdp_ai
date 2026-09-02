@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Sparkles, Search, Loader2, ArrowRight, ShieldCheck, CheckCircle2, Trophy, ArrowUpRight } from 'lucide-react';
+import { 
+  Sparkles, Search, Loader2, ArrowRight, ShieldCheck, CheckCircle2, 
+  Trophy, ArrowUpRight, ArrowUpDown, Filter, SlidersHorizontal, RotateCcw 
+} from 'lucide-react';
 import { StatusBadge } from '@/components/data/StatusBadge';
 import { EvidencePanel } from '@/components/data/EvidencePanel';
 import { api } from '@/lib/api';
@@ -12,6 +15,12 @@ export default function WhatToPublishPage() {
   const [marketplace, setMarketplace] = useState('US');
   const [rankedOpportunities, setRankedOpportunities] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Sort & Filter States
+  const [searchFilter, setSearchFilter] = useState('');
+  const [competitionFilter, setCompetitionFilter] = useState('ALL');
+  const [minScoreFilter, setMinScoreFilter] = useState(0);
+  const [sortBy, setSortBy] = useState<'rank_asc' | 'score_desc' | 'score_asc' | 'comp_asc'>('rank_asc');
 
   useEffect(() => {
     runRecommendationPipeline();
@@ -29,6 +38,47 @@ export default function WhatToPublishPage() {
       setRankedOpportunities([]);
     }
     setIsLoading(false);
+  };
+
+  const filteredAndSortedOpportunities = useMemo(() => {
+    let list = [...rankedOpportunities];
+
+    if (searchFilter.trim()) {
+      const q = searchFilter.toLowerCase();
+      list = list.filter(opp => 
+        opp.niche.toLowerCase().includes(q) ||
+        (opp.why && opp.why.toLowerCase().includes(q)) ||
+        (opp.content_gap && opp.content_gap.toLowerCase().includes(q)) ||
+        (opp.demand_signals && opp.demand_signals.toLowerCase().includes(q))
+      );
+    }
+
+    if (competitionFilter !== 'ALL') {
+      list = list.filter(opp => (opp.competition_level || '').toUpperCase() === competitionFilter);
+    }
+
+    if (minScoreFilter > 0) {
+      list = list.filter(opp => (opp.opportunity_score || 0) >= minScoreFilter);
+    }
+
+    list.sort((a, b) => {
+      if (sortBy === 'rank_asc') return (a.rank || 0) - (b.rank || 0);
+      if (sortBy === 'score_desc') return (b.opportunity_score || 0) - (a.opportunity_score || 0);
+      if (sortBy === 'score_asc') return (a.opportunity_score || 0) - (b.opportunity_score || 0);
+      if (sortBy === 'comp_asc') return (a.competition_score || 0) - (b.competition_score || 0);
+      return 0;
+    });
+
+    return list;
+  }, [rankedOpportunities, searchFilter, competitionFilter, minScoreFilter, sortBy]);
+
+  const hasActiveFilters = searchFilter || competitionFilter !== 'ALL' || minScoreFilter > 0 || sortBy !== 'rank_asc';
+
+  const resetFilters = () => {
+    setSearchFilter('');
+    setCompetitionFilter('ALL');
+    setMinScoreFilter(0);
+    setSortBy('rank_asc');
   };
 
   return (
@@ -72,6 +122,89 @@ export default function WhatToPublishPage() {
         </form>
       </div>
 
+      {/* Sort & Filter Controls */}
+      {rankedOpportunities.length > 0 && !isLoading && (
+        <div className="glass-panel rounded-2xl p-4 border border-slate-800 space-y-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-bold text-white">Filter & Sort Opportunities:</span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold">
+                Showing {filteredAndSortedOpportunities.length} of {rankedOpportunities.length}
+              </span>
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                onClick={resetFilters}
+                className="flex items-center gap-1.5 text-[11px] text-amber-400 hover:text-amber-300 transition-colors self-start md:self-auto"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Filters</span>
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            {/* Search Filter */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                placeholder="Filter niches or content gaps..."
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white focus:border-amber-500 focus:outline-none"
+              />
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:border-amber-500 focus:outline-none cursor-pointer"
+              >
+                <option value="rank_asc">Overall Rank (#1 to #10)</option>
+                <option value="score_desc">Opportunity Score (Highest)</option>
+                <option value="score_asc">Opportunity Score (Lowest)</option>
+                <option value="comp_asc">Competition (Lowest First)</option>
+              </select>
+            </div>
+
+            {/* Competition Filter */}
+            <div className="flex items-center gap-2">
+              <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <select
+                value={competitionFilter}
+                onChange={(e) => setCompetitionFilter(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:border-amber-500 focus:outline-none cursor-pointer"
+              >
+                <option value="ALL">All Competition Levels</option>
+                <option value="VERY EASY">Very Easy Only</option>
+                <option value="EASY">Easy Only</option>
+                <option value="MODERATE">Moderate</option>
+              </select>
+            </div>
+
+            {/* Min Score Filter */}
+            <div className="flex items-center gap-2">
+              <select
+                value={minScoreFilter}
+                onChange={(e) => setMinScoreFilter(Number(e.target.value))}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:border-amber-500 focus:outline-none cursor-pointer"
+              >
+                <option value={0}>All Scores</option>
+                <option value={75}>Min Score 75+</option>
+                <option value={80}>Min Score 80+</option>
+                <option value={85}>Min Score 85+</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pipeline Status Cards */}
       {isLoading ? (
         <div className="py-24 text-center space-y-4">
@@ -81,15 +214,15 @@ export default function WhatToPublishPage() {
             <p className="text-xs text-slate-400">Sampling Amazon demand, competitor review barriers, seasonal calendars, and content gaps...</p>
           </div>
         </div>
-      ) : rankedOpportunities.length > 0 ? (
+      ) : filteredAndSortedOpportunities.length > 0 ? (
         <div className="space-y-4">
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <Trophy className="w-4 h-4 text-amber-400" />
-            <span>Top Ranked Publishing Opportunities for &quot;{themePrompt}&quot;</span>
+            <span>Top Ranked Opportunities for &quot;{themePrompt}&quot;</span>
           </h2>
 
           <div className="grid grid-cols-1 gap-4">
-            {rankedOpportunities.map((opp) => (
+            {filteredAndSortedOpportunities.map((opp) => (
               <div key={opp.rank} className="glass-panel rounded-3xl p-6 border border-slate-800 space-y-4 hover:border-slate-700 transition-all">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
                   <div className="flex items-center gap-3">
@@ -137,6 +270,16 @@ export default function WhatToPublishPage() {
               </div>
             ))}
           </div>
+        </div>
+      ) : rankedOpportunities.length > 0 ? (
+        <div className="py-16 text-center space-y-3 glass-panel rounded-3xl border border-slate-800">
+          <p className="text-sm font-bold text-white">No opportunities match your filter criteria.</p>
+          <button
+            onClick={resetFilters}
+            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all"
+          >
+            Reset Filters
+          </button>
         </div>
       ) : (
         <div className="py-16 text-center text-xs text-slate-400">
