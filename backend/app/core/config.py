@@ -11,16 +11,28 @@ REPORTS_DIR.mkdir(exist_ok=True)
 BACKUPS_DIR = BASE_DIR / "backups"
 BACKUPS_DIR.mkdir(exist_ok=True)
 
+# Supabase PostgreSQL connection defaults
+DEFAULT_POSTGRES_ASYNC_URL = (
+    "postgresql+asyncpg://postgres.pemjwprezimbzmgeduoj:KjXWremtSKCxtcl6"
+    "@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+)
+DEFAULT_POSTGRES_SYNC_URL = (
+    "postgresql+psycopg2://postgres.pemjwprezimbzmgeduoj:KjXWremtSKCxtcl6"
+    "@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+)
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "KDP Intelligence Studio"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     
-    # Database
-    DATABASE_URL: str = f"sqlite+aiosqlite:///{DATA_DIR}/kdp_studio.db"
-    SYNC_DATABASE_URL: str = f"sqlite:///{DATA_DIR}/kdp_studio.db"
-    USE_POSTGRES: bool = False
-    POSTGRES_URL: Optional[str] = None
+    # Primary Database (Supabase PostgreSQL by default, with SQLite fallback)
+    USE_POSTGRES: bool = True
+    POSTGRES_URL: str = DEFAULT_POSTGRES_ASYNC_URL
+    POSTGRES_SYNC_URL: str = DEFAULT_POSTGRES_SYNC_URL
+    
+    DATABASE_URL: str = DEFAULT_POSTGRES_ASYNC_URL
+    SYNC_DATABASE_URL: str = DEFAULT_POSTGRES_SYNC_URL
     
     # Amazon PA-API Credentials (Optional - configured via UI/env)
     AMAZON_ACCESS_KEY: Optional[str] = None
