@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings, ShieldCheck, Key, Database, Cpu, Play, Download, Upload, CheckCircle2, AlertCircle, Loader2, Save } from 'lucide-react';
+import { Settings, ShieldCheck, Key, Database, Cpu, Play, Download, Upload, CheckCircle2, AlertCircle, Loader2, Save, Sparkles } from 'lucide-react';
 import { StatusBadge } from '@/components/data/StatusBadge';
 import { api } from '@/lib/api';
 
@@ -10,12 +10,14 @@ export default function SettingsPage() {
   const [secretKey, setSecretKey] = useState('');
   const [associateTag, setAssociateTag] = useState('');
   const [defaultMarketplace, setDefaultMarketplace] = useState('US');
-  const [aiProvider, setAiProvider] = useState('ollama');
+  
+  // AI Settings
+  const [aiProvider, setAiProvider] = useState('openai');
   const [ollamaUrl, setOllamaUrl] = useState('http://localhost:11434');
   const [ollamaModel, setOllamaModel] = useState('llama3:latest');
   const [openaiKey, setOpenaiKey] = useState('');
-  const [openaiBaseUrl, setOpenaiBaseUrl] = useState('https://api.openai.com/v1');
-  const [openaiModel, setOpenaiModel] = useState('gpt-4o-mini');
+  const [openaiBaseUrl, setOpenaiBaseUrl] = useState('https://api.groq.com/openai/v1');
+  const [openaiModel, setOpenaiModel] = useState('llama-3.3-70b-versatile');
 
   const [diagnostics, setDiagnostics] = useState<any[]>([]);
   const [isTesting, setIsTesting] = useState(false);
@@ -35,12 +37,12 @@ export default function SettingsPage() {
       setSecretKey(s.amazon_secret_key || '');
       setAssociateTag(s.amazon_associate_tag || '');
       setDefaultMarketplace(s.amazon_default_marketplace || 'US');
-      setAiProvider(s.ai_provider || 'ollama');
+      setAiProvider(s.ai_provider || 'openai');
       setOllamaUrl(s.ollama_base_url || 'http://localhost:11434');
       setOllamaModel(s.ollama_model || 'llama3:latest');
       setOpenaiKey(s.openai_api_key || '');
-      setOpenaiBaseUrl(s.openai_base_url || 'https://api.openai.com/v1');
-      setOpenaiModel(s.openai_model || 'gpt-4o-mini');
+      setOpenaiBaseUrl(s.openai_base_url || 'https://api.groq.com/openai/v1');
+      setOpenaiModel(s.openai_model || 'llama-3.3-70b-versatile');
     } catch (e) {}
   };
 
@@ -49,6 +51,30 @@ export default function SettingsPage() {
       const res = await api.listBackups();
       setBackups(res || []);
     } catch (e) {}
+  };
+
+  const applyPreset = (type: 'groq' | 'openai' | 'gemini' | 'openrouter' | 'ollama') => {
+    if (type === 'groq') {
+      setAiProvider('openai');
+      setOpenaiBaseUrl('https://api.groq.com/openai/v1');
+      setOpenaiModel('llama-3.3-70b-versatile');
+    } else if (type === 'openai') {
+      setAiProvider('openai');
+      setOpenaiBaseUrl('https://api.openai.com/v1');
+      setOpenaiModel('gpt-4o-mini');
+    } else if (type === 'gemini') {
+      setAiProvider('openai');
+      setOpenaiBaseUrl('https://generativelanguage.googleapis.com/v1beta/openai/');
+      setOpenaiModel('gemini-1.5-flash');
+    } else if (type === 'openrouter') {
+      setAiProvider('openai');
+      setOpenaiBaseUrl('https://openrouter.ai/api/v1');
+      setOpenaiModel('meta-llama/llama-3.3-70b-instruct');
+    } else if (type === 'ollama') {
+      setAiProvider('ollama');
+      setOllamaUrl('http://localhost:11434');
+      setOllamaModel('llama3:latest');
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -66,7 +92,7 @@ export default function SettingsPage() {
         openai_api_key: openaiKey || undefined,
         openai_base_url: openaiBaseUrl || undefined,
         openai_model: openaiModel,
-        use_postgres: false,
+        use_postgres: true,
       });
       setSaveMessage('Settings saved successfully!');
       setTimeout(() => setSaveMessage(null), 3000);
@@ -163,6 +189,137 @@ export default function SettingsPage() {
 
       {/* Main Settings Form */}
       <form onSubmit={handleSave} className="space-y-6 text-xs">
+        {/* Local & Cloud AI Engine */}
+        <div className="glass-panel rounded-3xl p-6 border border-slate-800 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-indigo-400" />
+              <h3 className="text-sm font-bold text-white">AI Intelligence Engine Configuration</h3>
+            </div>
+
+            {/* Quick 1-Click Presets */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] text-slate-400 font-bold uppercase mr-1">Quick Presets:</span>
+              <button
+                type="button"
+                onClick={() => applyPreset('groq')}
+                className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[11px] font-semibold transition-all"
+              >
+                ⚡ Groq (Free & Ultra Fast)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('openai')}
+                className="px-2.5 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-300 text-[11px] font-semibold transition-all"
+              >
+                OpenAI
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('gemini')}
+                className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold transition-all"
+              >
+                Google Gemini
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('ollama')}
+                className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[11px] font-semibold transition-all"
+              >
+                Local Ollama
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div className="space-y-3">
+              <label className="text-slate-400 block mb-1 font-semibold">Active AI Mode</label>
+              <select
+                value={aiProvider}
+                onChange={(e) => setAiProvider(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white cursor-pointer"
+              >
+                <option value="openai">Cloud API (Groq / OpenAI / Gemini / OpenRouter)</option>
+                <option value="ollama">Local Ollama (Offline on Windows PC)</option>
+              </select>
+
+              {aiProvider === 'openai' && (
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <label className="text-slate-400 block mb-1">API Key</label>
+                    <input
+                      type="password"
+                      value={openaiKey}
+                      onChange={(e) => setOpenaiKey(e.target.value)}
+                      placeholder="e.g. gsk_... (Groq) or sk-... (OpenAI / Gemini)"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-1">Base Endpoint URL</label>
+                    <input
+                      type="text"
+                      value={openaiBaseUrl}
+                      onChange={(e) => setOpenaiBaseUrl(e.target.value)}
+                      placeholder="https://api.groq.com/openai/v1"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-1">Model Name</label>
+                    <input
+                      type="text"
+                      value={openaiModel}
+                      onChange={(e) => setOpenaiModel(e.target.value)}
+                      placeholder="llama-3.3-70b-versatile"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {aiProvider === 'ollama' && (
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <label className="text-slate-400 block mb-1">Ollama Base URL</label>
+                    <input
+                      type="text"
+                      value={ollamaUrl}
+                      onChange={(e) => setOllamaUrl(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-1">Installed Ollama Model</label>
+                    <input
+                      type="text"
+                      value={ollamaModel}
+                      onChange={(e) => setOllamaModel(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2.5 text-xs text-slate-300">
+              <span className="font-bold text-white text-xs block flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>How to Get Instant 100% Free AI:</span>
+              </span>
+              <p>
+                <b>Recommended (Fastest & Free):</b> Click <b>&quot;⚡ Groq&quot;</b> above, get a free API key instantly at <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline">groq.com</a>, and paste it.
+              </p>
+              <p>
+                <b>Local Offline:</b> Install Ollama on Windows from <a href="https://ollama.com" target="_blank" rel="noopener noreferrer" className="text-sky-400 underline">ollama.com</a> and run <code>ollama run llama3</code>.
+              </p>
+              <p className="text-slate-400 text-[11px] pt-1">
+                * Even with zero keys, the built-in deterministic heuristic engine automatically analyzes titles, keywords, and listing health.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Amazon Credentials */}
         <div className="glass-panel rounded-3xl p-6 border border-slate-800 space-y-4">
           <div className="flex items-center gap-2">
@@ -207,91 +364,15 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Local AI Engine */}
-        <div className="glass-panel rounded-3xl p-6 border border-slate-800 space-y-4">
-          <div className="flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-indigo-400" />
-            <h3 className="text-sm font-bold text-white">AI Engine Configuration (Local Ollama / OpenAI)</h3>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <label className="text-slate-400 block mb-1">Active AI Provider</label>
-              <select
-                value={aiProvider}
-                onChange={(e) => setAiProvider(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white cursor-pointer"
-              >
-                <option value="ollama">Local Ollama (Offline / Zero Cost)</option>
-                <option value="openai">OpenAI / Compatible Endpoint</option>
-              </select>
-
-              {aiProvider === 'ollama' && (
-                <div className="space-y-3 pt-2">
-                  <div>
-                    <label className="text-slate-400 block mb-1">Ollama Base URL</label>
-                    <input
-                      type="text"
-                      value={ollamaUrl}
-                      onChange={(e) => setOllamaUrl(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-400 block mb-1">Installed Ollama Model</label>
-                    <input
-                      type="text"
-                      value={ollamaModel}
-                      onChange={(e) => setOllamaModel(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {aiProvider === 'openai' && (
-                <div className="space-y-3 pt-2">
-                  <div>
-                    <label className="text-slate-400 block mb-1">OpenAI API Key</label>
-                    <input
-                      type="password"
-                      value={openaiKey}
-                      onChange={(e) => setOpenaiKey(e.target.value)}
-                      placeholder="sk-..."
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-400 block mb-1">Base URL (For LM Studio, Groq, OpenRouter)</label>
-                    <input
-                      type="text"
-                      value={openaiBaseUrl}
-                      onChange={(e) => setOpenaiBaseUrl(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2 text-xs text-slate-300">
-              <span className="font-bold text-white text-xs block">AI Safety & Integrity Guardrails:</span>
-              <p>• AI is strictly confined to analytical reasoning, classification, and concept synthesis.</p>
-              <p>• Raw Amazon facts, BSR numbers, and prices are NEVER fabricated or hallucinatory.</p>
-              <p>• If no AI model is active, the engine falls back to deterministic heuristic rules.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Database & Backups */}
+        {/* Database & Supabase Cloud Status */}
         <div className="glass-panel rounded-3xl p-6 border border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Database className="w-4 h-4 text-emerald-400" />
-                <span>Local Database & Backup Management</span>
+                <span>Primary Cloud Database: Supabase PostgreSQL (Active)</span>
               </h3>
-              <p className="text-xs text-slate-400">Primary storage: <code>data/kdp_studio.db</code> (SQLite in WAL mode).</p>
+              <p className="text-xs text-slate-400">Host: <code>aws-0-ap-southeast-1.pooler.supabase.com:5432</code> (16 Public Schema Tables).</p>
             </div>
 
             <button
@@ -303,18 +384,6 @@ export default function SettingsPage() {
               <span>Create Backup Snapshot</span>
             </button>
           </div>
-
-          {backups.length > 0 && (
-            <div className="space-y-2 pt-2">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Available Database Backups:</span>
-              {backups.slice(0, 3).map((b, idx) => (
-                <div key={idx} className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
-                  <span className="font-mono text-slate-200">{b.filename} ({b.size_kb} KB)</span>
-                  <span className="text-slate-400">{new Date(b.created_at).toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Save Bar */}
