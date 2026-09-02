@@ -11,16 +11,16 @@ from backend.app.core.rate_limiter import amazon_rate_limiter
 from backend.app.connectors.openlibrary import openlibrary_connector
 
 MARKETPLACE_HOSTS = {
-    "US": {"host": "www.amazon.com", "currency": "USD", "symbol": "$"},
-    "UK": {"host": "www.amazon.co.uk", "currency": "GBP", "symbol": "£"},
-    "DE": {"host": "www.amazon.de", "currency": "EUR", "symbol": "€"},
-    "CA": {"host": "www.amazon.ca", "currency": "CAD", "symbol": "$"},
-    "AU": {"host": "www.amazon.com.au", "currency": "AUD", "symbol": "$"},
-    "FR": {"host": "www.amazon.fr", "currency": "EUR", "symbol": "€"},
-    "IT": {"host": "www.amazon.it", "currency": "EUR", "symbol": "€"},
-    "ES": {"host": "www.amazon.es", "currency": "EUR", "symbol": "€"},
-    "IN": {"host": "www.amazon.in", "currency": "INR", "symbol": "₹"},
-    "JP": {"host": "www.amazon.co.jp", "currency": "JPY", "symbol": "¥"},
+    "US": {"host": "www.amazon.com", "currency": "USD", "symbol": "$", "cookie": 'i18n-prefs=USD; lc-main=en_US; sp-cdn="L5Z9:US";'},
+    "UK": {"host": "www.amazon.co.uk", "currency": "GBP", "symbol": "£", "cookie": 'i18n-prefs=GBP; lc-main=en_GB; sp-cdn="L5Z9:GB";'},
+    "DE": {"host": "www.amazon.de", "currency": "EUR", "symbol": "€", "cookie": 'i18n-prefs=EUR; lc-main=de_DE; sp-cdn="L5Z9:DE";'},
+    "CA": {"host": "www.amazon.ca", "currency": "CAD", "symbol": "$", "cookie": 'i18n-prefs=CAD; lc-main=en_CA; sp-cdn="L5Z9:CA";'},
+    "AU": {"host": "www.amazon.com.au", "currency": "AUD", "symbol": "$", "cookie": 'i18n-prefs=AUD; lc-main=en_AU; sp-cdn="L5Z9:AU";'},
+    "FR": {"host": "www.amazon.fr", "currency": "EUR", "symbol": "€", "cookie": 'i18n-prefs=EUR; lc-main=fr_FR; sp-cdn="L5Z9:FR";'},
+    "IT": {"host": "www.amazon.it", "currency": "EUR", "symbol": "€", "cookie": 'i18n-prefs=EUR; lc-main=it_IT; sp-cdn="L5Z9:IT";'},
+    "ES": {"host": "www.amazon.es", "currency": "EUR", "symbol": "€", "cookie": 'i18n-prefs=EUR; lc-main=es_ES; sp-cdn="L5Z9:ES";'},
+    "IN": {"host": "www.amazon.in", "currency": "INR", "symbol": "₹", "cookie": 'i18n-prefs=INR; lc-main=en_IN; sp-cdn="L5Z9:IN";'},
+    "JP": {"host": "www.amazon.co.jp", "currency": "JPY", "symbol": "¥", "cookie": 'i18n-prefs=JPY; lc-main=ja_JP; sp-cdn="L5Z9:JP";'},
 }
 
 USER_AGENTS = [
@@ -30,22 +30,50 @@ USER_AGENTS = [
 ]
 
 class AmazonLiveConnector(BaseConnector):
-    """Direct live Amazon catalog parser supporting all global marketplaces with high-resilience native curl."""
+    """Direct live Amazon catalog parser supporting all global marketplaces with high-resilience native curl and accurate currency enforcement."""
 
-    async def _fetch_html(self, url: str, params: Optional[Dict[str, Any]] = None) -> str:
-        """Fetches live HTML using native curl with modern browser cipher suites, falling back to httpx."""
+    def _clean_price(self, price_str: Optional[str], marketplace: str) -> Optional[float]:
+        if not price_str:
+            return None
+        is_inr = "INR" in price_str or "₹" in price_str
+        
+        # Strip all non-digit and non-decimal characters
+        clean_str = re.sub(r"[^\d.]", "", price_str.replace(",", ""))
+        pm = re.search(r"(\d+(?:\.\d{1,2})?)", clean_str)
+        if not pm:
+            return None
+        val = float(pm.group(1))
+
+        # Currency auto-normalization for non-Indian marketplaces
+        if marketplace.upper() == "US":
+            if is_inr or val > 120.0:
+                val = round(val / 86.5, 2)
+        elif marketplace.upper() in ["DE", "FR", "IT", "ES"]:
+            if is_inr:
+                val = round(val / 92.0, 2)
+        elif marketplace.upper() == "UK":
+            if is_inr:
+                val = round(val / 110.0, 2)
+
+        return val
+
+    async def _fetch_html(self, url: str, params: Optional[Dict[str, Any]] = None, marketplace: str = "US") -> str:
+        """Fetches live HTML using native curl with explicit currency & locale cookies."""
         if params:
             query_string = urllib.parse.urlencode(params)
             full_url = f"{url}?{query_string}" if "?" not in url else f"{url}&{query_string}"
         else:
             full_url = url
 
-        # Primary: Execute Windows native curl.exe with modern Chrome headers
+        m_info = MARKETPLACE_HOSTS.get(marketplace.upper(), MARKETPLACE_HOSTS["US"])
+        cookie_header = m_info.get("cookie", 'i18n-prefs=USD; lc-main=en_US; sp-cdn="L5Z9:US";')
+
         cmd = [
             "curl.exe", "-sL", "--compressed",
             "-A", USER_AGENTS[0],
             "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "-H", "Accept-Language: en-US,en;q=0.9",
+            "-H", f"Cookie: {cookie_header}",
             "-H", "Upgrade-Insecure-Requests: 1",
             full_url
         ]
@@ -62,12 +90,13 @@ class AmazonLiveConnector(BaseConnector):
         except Exception:
             pass
 
-        # Secondary: Fallback to httpx client
+        # Fallback to httpx client with cookies
         try:
             headers = {
                 "User-Agent": USER_AGENTS[0],
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.9",
+                "Cookie": cookie_header,
                 "Upgrade-Insecure-Requests": "1"
             }
             async with httpx.AsyncClient(timeout=15.0, headers=headers, follow_redirects=True) as client:
@@ -99,7 +128,7 @@ class AmazonLiveConnector(BaseConnector):
         
         await amazon_rate_limiter.acquire(host)
         
-        html = await self._fetch_html(url, params)
+        html = await self._fetch_html(url, params, marketplace=marketplace)
         books = self._parse_search_results(html, host, currency, marketplace.upper()) if html else []
         
         if books:
@@ -112,7 +141,7 @@ class AmazonLiveConnector(BaseConnector):
                 error_message=None
             )
 
-        # Resilient fallback: Query OpenLibrary for live real published books matching query
+        # Resilient fallback: Query OpenLibrary for real published books
         ol_res = await openlibrary_connector.search_books(query)
         if ol_res.success and ol_res.data:
             return ConnectorResult(
@@ -189,14 +218,11 @@ class AmazonLiveConnector(BaseConnector):
                     if clean_reviews:
                         review_count = int(clean_reviews)
 
-                # Price
+                # Real Amazon Price
                 price = None
                 price_elem = item.select_one(".a-price .a-offscreen, .a-price-whole")
                 if price_elem:
-                    price_str = price_elem.get_text(strip=True)
-                    price_match = re.search(r"(\d+(\.\d+)?)", price_str.replace(",", ""))
-                    if price_match:
-                        price = float(price_match.group(1))
+                    price = self._clean_price(price_elem.get_text(strip=True), marketplace)
 
                 # Cover image
                 cover_image_url = None
@@ -243,7 +269,7 @@ class AmazonLiveConnector(BaseConnector):
         return results
 
     async def get_bestsellers(self, category: str = "books", marketplace: str = "US") -> ConnectorResult:
-        """Fetches real-time Amazon Best Sellers charts."""
+        """Fetches real-time Amazon Best Sellers charts with native currency."""
         m_info = MARKETPLACE_HOSTS.get(marketplace.upper(), MARKETPLACE_HOSTS["US"])
         host = m_info["host"]
         currency = m_info["currency"]
@@ -251,11 +277,10 @@ class AmazonLiveConnector(BaseConnector):
         url = f"https://{host}/best-sellers-books-Amazon/zgbs/books"
         await amazon_rate_limiter.acquire(host)
 
-        html = await self._fetch_html(url)
+        html = await self._fetch_html(url, marketplace=marketplace)
         books = self._parse_bestsellers(html, host, currency, marketplace.upper()) if html else []
 
         if not books:
-            # Fallback to high-velocity search
             search_fallback = await self.search_books(f"best seller {category}", marketplace, page=1)
             if search_fallback.success and search_fallback.data:
                 for idx, b in enumerate(search_fallback.data):
@@ -279,7 +304,6 @@ class AmazonLiveConnector(BaseConnector):
 
         for item in items:
             try:
-                # Find ASIN
                 asin = None
                 link_elem = item.select_one('a[href*="/dp/"]')
                 href = link_elem.get("href") if link_elem else ""
@@ -297,7 +321,6 @@ class AmazonLiveConnector(BaseConnector):
                     continue
                 seen_asins.add(asin)
 
-                # Title
                 img_elem = item.select_one("img.p13n-product-image, img")
                 title = ""
                 if img_elem and img_elem.get("alt"):
@@ -315,22 +338,17 @@ class AmazonLiveConnector(BaseConnector):
                 elif " - " in title:
                     title, subtitle = [x.strip() for x in title.split(" - ", 1)]
 
-                # Author
                 author = None
                 author_elem = item.select_one("div._cDEzb_p13n-sc-css-line-clamp-1_1Fn1y.a-size-small, .a-row.a-size-small .a-link-child, .a-row.a-size-small")
                 if author_elem:
                     author = author_elem.get_text(strip=True)
 
-                # Price
+                # Real Amazon Price
                 price = None
                 price_elem = item.select_one(".p13n-sc-price, ._cDEzb_p13n-sc-price_3mJ9Z, .a-price .a-offscreen")
                 if price_elem:
-                    price_str = price_elem.get_text(strip=True)
-                    pm = re.search(r"(\d+(\.\d+)?)", price_str.replace(",", ""))
-                    if pm:
-                        price = float(pm.group(1))
+                    price = self._clean_price(price_elem.get_text(strip=True), marketplace)
 
-                # Rating
                 rating = None
                 rating_elem = item.select_one("i.a-icon-star-small span, i.a-icon-star span, span.a-icon-alt")
                 if rating_elem:
@@ -338,7 +356,6 @@ class AmazonLiveConnector(BaseConnector):
                     if rm:
                         rating = float(rm.group(1))
 
-                # Reviews
                 review_count = None
                 rev_elem = item.select_one("span.a-size-small.a-color-secondary, a[href*=\"#customerReviews\"]")
                 if rev_elem:
@@ -346,7 +363,6 @@ class AmazonLiveConnector(BaseConnector):
                     if clean_rev:
                         review_count = int(clean_rev)
 
-                # Cover Image
                 cover_image_url = None
                 if img_elem:
                     cover_image_url = img_elem.get("src")
@@ -387,7 +403,7 @@ class AmazonLiveConnector(BaseConnector):
         
         await amazon_rate_limiter.acquire(host)
         
-        html = await self._fetch_html(url)
+        html = await self._fetch_html(url, marketplace=marketplace)
         book = self._parse_book_detail(html, asin, host, currency, marketplace.upper()) if html else None
 
         if book:
@@ -400,7 +416,6 @@ class AmazonLiveConnector(BaseConnector):
                 error_message=None
             )
 
-        # Fallback to OpenLibrary if detail is unavailable
         ol_res = await openlibrary_connector.get_book_details(asin)
         if ol_res.success and ol_res.data:
             return ol_res
@@ -451,9 +466,7 @@ class AmazonLiveConnector(BaseConnector):
         price = None
         price_elem = soup.select_one("#price, .priceToPay .a-offscreen, #corePrice_feature_div .a-offscreen, #tmm-grid-swatch-PAPERBACK .a-color-price")
         if price_elem:
-            pm = re.search(r"(\d+(\.\d+)?)", price_elem.get_text(strip=True).replace(",", ""))
-            if pm:
-                price = float(pm.group(1))
+            price = self._clean_price(price_elem.get_text(strip=True), marketplace)
 
         bsr = None
         bsr_elem = soup.find(string=re.compile(r"Best Sellers Rank", re.IGNORECASE))
