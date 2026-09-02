@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { 
   Search, Sparkles, Trophy, KeyRound, BookOpen, ShieldCheck, 
   ExternalLink, Copy, Check, ArrowRight, Loader2, Star, 
-  DollarSign, BarChart3, Layers, Zap, Info, RotateCcw, Download
+  DollarSign, BarChart3, Layers, Zap, Info, RotateCcw, Download,
+  Globe2, CheckCircle2, TrendingUp
 } from 'lucide-react';
 import { StatusBadge } from '@/components/data/StatusBadge';
 import { api } from '@/lib/api';
@@ -21,10 +22,10 @@ const QUICK_SUGGESTIONS = [
 
 export default function DashboardPage() {
   const [keyword, setKeyword] = useState('kids book');
-  const [marketplace, setMarketplace] = useState('US');
+  const [marketplace, setMarketplace] = useState('GLOBAL');
   const [isLoading, setIsLoading] = useState(false);
   const [blueprint, setBlueprint] = useState<any | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'books' | 'keywords' | 'concepts' | 'seo'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'territories' | 'books' | 'keywords' | 'concepts' | 'seo'>('overview');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -60,15 +61,15 @@ export default function DashboardPage() {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-900 border border-sky-500/30 p-6 md:p-8 shadow-2xl">
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-semibold mb-3">
-            <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-            <span>1-Click All-in-One KDP Master Station</span>
+            <Globe2 className="w-3.5 h-3.5 text-sky-400 animate-pulse" />
+            <span>1-Click Worldwide &amp; Multi-Marketplace KDP Intelligence</span>
           </div>
 
           <h1 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
             KDP One-Click Master Research
           </h1>
           <p className="mt-2 text-xs md:text-sm text-slate-300 leading-relaxed">
-            Sirf ek keyword daalo (jaise <b>&quot;kids book&quot;</b>) — system ek sath Live Competitor Books, Autocomplete Keywords, Rank Feasibility (&quot;Can I Rank?&quot;), Book Ideas aur Ready-to-Publish SEO Title &amp; 7-Box Keywords nikal ke dega!
+            Sirf ek keyword daalo (jaise <b>&quot;kids book&quot;</b>) — <b>Worldwide</b> mode select karne se system ek sath <b>US, UK, Germany (EU), aur Canada</b> se live data nikal kar pura Global KDP Blueprint bana dega!
           </p>
 
           {/* Master Search Input */}
@@ -91,8 +92,9 @@ export default function DashboardPage() {
               <select
                 value={marketplace}
                 onChange={(e) => setMarketplace(e.target.value)}
-                className="bg-slate-950/90 border border-slate-700/80 rounded-2xl px-4 py-3 text-xs text-white font-medium focus:border-sky-400 focus:outline-none cursor-pointer"
+                className="bg-slate-950/90 border border-sky-500/40 rounded-2xl px-4 py-3 text-xs text-white font-bold focus:border-sky-400 focus:outline-none cursor-pointer"
               >
+                <option value="GLOBAL">🌍 Worldwide (US, UK, DE, CA)</option>
                 <option value="US">🇺🇸 US ($)</option>
                 <option value="UK">🇬🇧 UK (£)</option>
                 <option value="DE">🇩🇪 DE (€)</option>
@@ -109,7 +111,7 @@ export default function DashboardPage() {
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Researching...</span>
+                    <span>Analyzing World...</span>
                   </>
                 ) : (
                   <>
@@ -143,12 +145,14 @@ export default function DashboardPage() {
         <div className="glass-panel rounded-3xl p-8 border border-slate-800 text-center space-y-4 animate-in fade-in">
           <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
             <div className="absolute inset-0 rounded-full border-4 border-sky-500/20 border-t-sky-400 animate-spin" />
-            <Sparkles className="w-6 h-6 text-amber-400" />
+            <Globe2 className="w-6 h-6 text-sky-400" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white">Running 1-Click Master Research on &quot;{keyword}&quot;</h3>
+            <h3 className="text-base font-bold text-white">
+              {marketplace === 'GLOBAL' ? 'Scanning Global Amazon Matrix (US, UK, DE, CA)...' : `Querying Live Amazon catalog for "${keyword}"...`}
+            </h3>
             <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-              Extracting Live Amazon Competitor Books, Autocomplete Keywords, Rank Feasibility Verdict, and Generating SEO Package via Groq Cloud AI...
+              Extracting Live Competitor Books, Autocomplete Keywords, Worldwide Winability Verdict, and Generating Ready-to-Publish SEO Package...
             </p>
           </div>
         </div>
@@ -173,7 +177,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Target Niche:</span>
                   <span className="text-lg font-extrabold text-white">&quot;{blueprint.keyword}&quot;</span>
-                  <StatusBadge status="LIVE" source="Amazon Live Catalog" />
+                  <StatusBadge status="LIVE" source={blueprint.is_global ? "Worldwide Matrix" : `Amazon ${blueprint.marketplace}`} />
                 </div>
                 <div className="mt-2 flex items-center gap-2">
                   <span className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -196,8 +200,12 @@ export default function DashboardPage() {
                   <span className="text-base font-extrabold text-amber-400">{blueprint.avg_reviews ? blueprint.avg_reviews.toLocaleString() : '0'} avg</span>
                 </div>
                 <div className="bg-slate-950/80 px-4 py-2.5 rounded-2xl border border-slate-800 text-center">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Price Sweetspot</span>
-                  <span className="text-base font-extrabold text-emerald-400">{blueprint.recommended_price_sweetspot}</span>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                    {blueprint.is_global ? 'US Benchmark Price' : 'Price Sweetspot'}
+                  </span>
+                  <span className="text-base font-extrabold text-emerald-400">
+                    {blueprint.is_global ? `$${blueprint.avg_price?.toFixed(2)}` : blueprint.recommended_price_sweetspot}
+                  </span>
                 </div>
               </div>
             </div>
@@ -222,6 +230,19 @@ export default function DashboardPage() {
                 <BarChart3 className="w-4 h-4" />
                 <span>Overview Summary</span>
               </button>
+              
+              {blueprint.is_global && (
+                <button
+                  onClick={() => setActiveTab('territories')}
+                  className={`pb-3 px-3 text-xs font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                    activeTab === 'territories' ? 'text-sky-400 border-b-2 border-sky-400' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Globe2 className="w-4 h-4 text-amber-400" />
+                  <span>🌍 Worldwide Matrix (4 Markets)</span>
+                </button>
+              )}
+
               <button
                 onClick={() => setActiveTab('books')}
                 className={`pb-3 px-3 text-xs font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
@@ -229,8 +250,9 @@ export default function DashboardPage() {
                 }`}
               >
                 <BookOpen className="w-4 h-4" />
-                <span>Live Competitor Books ({blueprint.books?.length || 0})</span>
+                <span>Competitor Books ({blueprint.books?.length || 0})</span>
               </button>
+              
               <button
                 onClick={() => setActiveTab('keywords')}
                 className={`pb-3 px-3 text-xs font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
@@ -240,6 +262,7 @@ export default function DashboardPage() {
                 <KeyRound className="w-4 h-4" />
                 <span>Suggested Keywords ({blueprint.suggested_keywords?.length || 0})</span>
               </button>
+              
               <button
                 onClick={() => setActiveTab('concepts')}
                 className={`pb-3 px-3 text-xs font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
@@ -249,6 +272,7 @@ export default function DashboardPage() {
                 <Sparkles className="w-4 h-4 text-amber-400" />
                 <span>AI Book Concepts ({blueprint.concepts?.length || 0})</span>
               </button>
+              
               <button
                 onClick={() => setActiveTab('seo')}
                 className={`pb-3 px-3 text-xs font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
@@ -256,7 +280,7 @@ export default function DashboardPage() {
                 }`}
               >
                 <Trophy className="w-4 h-4 text-emerald-400" />
-                <span>Ready-to-Publish SEO Package</span>
+                <span>Ready-to-Publish SEO</span>
               </button>
             </div>
           </div>
@@ -264,6 +288,51 @@ export default function DashboardPage() {
           {/* TAB 1: OVERVIEW ALL-IN-ONE */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
+              
+              {/* WORLDWIDE TERRITORY OVERVIEW CARDS (When GLOBAL is active) */}
+              {blueprint.is_global && blueprint.global_territories && (
+                <div className="glass-panel rounded-3xl p-5 border border-sky-500/30 space-y-3 bg-gradient-to-br from-slate-900/90 to-sky-950/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Globe2 className="w-4 h-4 text-sky-400" />
+                      <h3 className="text-sm font-bold text-white">Worldwide Market Comparison (Live Multi-Territory Matrix)</h3>
+                    </div>
+                    <span className="text-[11px] text-slate-400">Sampled US, UK, DE, and CA simultaneously</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {blueprint.global_territories.map((t: any) => (
+                      <div key={t.territory} className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xl">{t.flag}</span>
+                            <span className="text-xs font-bold text-white">{t.country_name}</span>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            t.barrier === 'LOW' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                          }`}>
+                            {t.barrier} Barrier
+                          </span>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-800/80 space-y-1 text-xs">
+                          <div className="flex items-center justify-between text-slate-400">
+                            <span>Recommended Price:</span>
+                            <b className="text-emerald-400">{t.recommended_price}</b>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-400">
+                            <span>Median Reviews:</span>
+                            <b className="text-white">{t.median_reviews} revs</b>
+                          </div>
+                        </div>
+
+                        <p className="text-[10px] text-slate-400 italic pt-1">{t.opportunity_verdict}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Quick Visual Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
@@ -272,7 +341,9 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <BookOpen className="w-4 h-4 text-sky-400" />
-                      <h3 className="text-sm font-bold text-white">Live Competitor Books on Amazon</h3>
+                      <h3 className="text-sm font-bold text-white">
+                        {blueprint.is_global ? 'Top Global Books across Marketplaces' : 'Live Competitor Books on Amazon'}
+                      </h3>
                     </div>
                     <button onClick={() => setActiveTab('books')} className="text-xs text-sky-400 hover:underline">
                       View all {blueprint.books?.length} books →
@@ -290,12 +361,17 @@ export default function DashboardPage() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <a href={b.amazon_url} target="_blank" rel="noopener noreferrer" className="font-bold text-xs text-white hover:text-sky-400 line-clamp-1">
-                            {b.title}
-                          </a>
-                          <p className="text-[11px] text-slate-400 truncate">By {b.author || 'Unknown'}</p>
+                          <div className="flex items-center gap-1.5">
+                            {b.territory_flag && <span className="text-xs">{b.territory_flag}</span>}
+                            <a href={b.amazon_url} target="_blank" rel="noopener noreferrer" className="font-bold text-xs text-white hover:text-sky-400 line-clamp-1">
+                              {b.title}
+                            </a>
+                          </div>
+                          <p className="text-[11px] text-slate-400 truncate mt-0.5">By {b.author || 'Unknown'}</p>
                           <div className="flex items-center gap-3 mt-1 text-[11px]">
-                            <span className="font-extrabold text-emerald-400">{b.price ? `$${b.price.toFixed(2)}` : 'N/A'}</span>
+                            <span className="font-extrabold text-emerald-400">
+                              {b.currency === 'GBP' ? '£' : b.currency === 'EUR' ? '€' : '$'}{b.price ? b.price.toFixed(2) : 'N/A'} {b.currency}
+                            </span>
                             <span className="text-amber-400">★ {b.current_rating || '4.5'}</span>
                             <span className="text-slate-400">({b.current_review_count?.toLocaleString() || 0} reviews)</span>
                           </div>
@@ -310,7 +386,7 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <KeyRound className="w-4 h-4 text-amber-400" />
-                      <h3 className="text-sm font-bold text-white">Amazon Live Autocomplete Keywords</h3>
+                      <h3 className="text-sm font-bold text-white">Live Autocomplete Keywords</h3>
                     </div>
                     <button onClick={() => setActiveTab('keywords')} className="text-xs text-amber-400 hover:underline">
                       View all keywords →
@@ -347,8 +423,8 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-amber-400" />
                     <div>
-                      <h3 className="text-sm font-bold text-white">Recommended SEO Title &amp; Subtitle</h3>
-                      <p className="text-[11px] text-slate-400">Crafted specifically for Amazon A9 algorithm conversion</p>
+                      <h3 className="text-sm font-bold text-white">Recommended Global SEO Title &amp; Subtitle</h3>
+                      <p className="text-[11px] text-slate-400">Crafted for Amazon A9 algorithm conversion across all English marketplaces</p>
                     </div>
                   </div>
                   <button onClick={() => setActiveTab('seo')} className="text-xs text-sky-400 hover:underline font-medium">
@@ -389,18 +465,108 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 2: LIVE COMPETITOR BOOKS */}
+          {/* TAB 2: WORLDWIDE TERRITORIES (When GLOBAL) */}
+          {activeTab === 'territories' && blueprint.is_global && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-white">Worldwide Market Matrix &amp; Pricing Breakdown</h3>
+                  <p className="text-xs text-slate-400">Live competitor benchmarks across Amazon&apos;s 4 largest publishing markets</p>
+                </div>
+              </div>
+
+              {/* Grid of 4 Territories */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {blueprint.global_territories?.map((t: any) => (
+                  <div key={t.territory} className="glass-panel rounded-3xl p-5 border border-slate-800 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">{t.flag}</span>
+                        <div>
+                          <h4 className="text-sm font-bold text-white">{t.country_name}</h4>
+                          <span className="text-[10px] text-slate-400 uppercase font-semibold">Amazon {t.territory} ({t.currency})</span>
+                        </div>
+                      </div>
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                        t.barrier === 'LOW' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      }`}>
+                        {t.barrier} Review Barrier
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Recommended Price</span>
+                        <p className="text-base font-extrabold text-emerald-400">{t.recommended_price}</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Median Reviews</span>
+                        <p className="text-base font-extrabold text-white">{t.median_reviews} reviews</p>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-slate-300 leading-relaxed bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
+                      <b>Market Opportunity: </b>
+                      <span>{t.opportunity_verdict}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* KDP Global Pricing Cheat Sheet Card */}
+              <div className="glass-panel rounded-3xl p-6 border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-emerald-400" />
+                    <div>
+                      <h4 className="text-sm font-bold text-white">KDP Dashboard Multi-Currency Pricing Cheat Sheet</h4>
+                      <p className="text-xs text-slate-400">Copy these prices directly into your KDP Royalty Dashboard for maximum profit</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {blueprint.global_territories?.map((t: any) => (
+                    <div key={t.territory} className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 text-center space-y-1">
+                      <span className="text-xs font-bold text-slate-300 flex items-center justify-center gap-1">
+                        <span>{t.flag}</span>
+                        <span>{t.currency}</span>
+                      </span>
+                      <p className="text-lg font-extrabold text-emerald-400">{t.recommended_price}</p>
+                      <button
+                        onClick={() => handleCopy(t.recommended_price.replace(/[^\d.]/g, ''), `price_${t.territory}`)}
+                        className="text-[10px] text-sky-400 hover:underline flex items-center justify-center gap-1 mx-auto"
+                      >
+                        {copiedKey === `price_${t.territory}` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>Copy</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 3: LIVE COMPETITOR BOOKS */}
           {activeTab === 'books' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-white">Live Competitor Books on Amazon ({blueprint.books?.length || 0})</h3>
-                <span className="text-xs text-slate-400">All prices and ratings verified from live catalog</span>
+                <h3 className="text-sm font-bold text-white">
+                  {blueprint.is_global ? `Worldwide Competitor Books (${blueprint.books?.length || 0} books across US, UK, DE, CA)` : `Live Competitor Books on Amazon (${blueprint.books?.length || 0})`}
+                </h3>
+                <span className="text-xs text-slate-400">All prices and ratings verified from live Amazon catalogs</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {blueprint.books?.map((b: any, idx: number) => (
                   <div key={b.asin || idx} className="glass-panel rounded-2xl p-4 border border-slate-800 flex gap-4 hover:border-slate-700 transition-all">
-                    <div className="w-20 h-28 bg-slate-900 rounded-xl overflow-hidden shrink-0 border border-slate-800">
+                    <div className="w-20 h-28 bg-slate-900 rounded-xl overflow-hidden shrink-0 border border-slate-800 relative">
+                      {b.territory_flag && (
+                        <span className="absolute top-1 left-1 text-xs bg-slate-950/80 px-1 rounded shadow">
+                          {b.territory_flag}
+                        </span>
+                      )}
                       {b.cover_image_url ? (
                         <img src={b.cover_image_url} alt={b.title} className="w-full h-full object-cover" />
                       ) : (
@@ -414,7 +580,9 @@ export default function DashboardPage() {
                         </a>
                         <p className="text-[11px] text-slate-400 truncate mt-0.5">By {b.author || 'Unknown'}</p>
                         <div className="mt-2 flex items-center gap-2 text-xs">
-                          <span className="font-extrabold text-emerald-400">{b.price ? `$${b.price.toFixed(2)}` : 'N/A'}</span>
+                          <span className="font-extrabold text-emerald-400">
+                            {b.currency === 'GBP' ? '£' : b.currency === 'EUR' ? '€' : '$'}{b.price ? b.price.toFixed(2) : 'N/A'} {b.currency}
+                          </span>
                           {b.current_rating && <span className="text-amber-400">★ {b.current_rating.toFixed(1)}</span>}
                         </div>
                       </div>
@@ -431,7 +599,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 3: SUGGESTED KEYWORDS */}
+          {/* TAB 4: SUGGESTED KEYWORDS */}
           {activeTab === 'keywords' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -480,7 +648,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 4: AI BOOK CONCEPTS */}
+          {/* TAB 5: AI BOOK CONCEPTS */}
           {activeTab === 'concepts' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -521,7 +689,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 5: READY-TO-PUBLISH SEO PACKAGE */}
+          {/* TAB 6: READY-TO-PUBLISH SEO PACKAGE */}
           {activeTab === 'seo' && (
             <div className="space-y-6">
               
