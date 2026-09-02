@@ -261,3 +261,28 @@ export interface AppSettings {
   use_postgres: boolean;
   postgres_url?: string;
 }
+
+export interface ScoutedWinningTopic {
+  id: string;
+  title: string;
+  niche: string;
+  target_audience: string;
+  category: string;
+  profit_potential_monthly: string;
+  recommended_price: string;
+  estimated_royalty_per_sale: string;
+  competition_level: string;
+  competition_score: number;
+  avg_competitor_reviews: number;
+  why_suggested: string;
+  why_points: string[];
+  how_to_rank_steps: string[];
+  cover_design_tip: string;
+  interior_spec: string;
+  target_keywords: string[];
+}
+
+export interface ScoutTopicsResponse {
+  topics: ScoutedWinningTopic[];
+  generated_at: string;
+}

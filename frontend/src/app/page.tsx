@@ -6,10 +6,12 @@ import {
   Search, Sparkles, Trophy, KeyRound, BookOpen, ShieldCheck, 
   ExternalLink, Copy, Check, ArrowRight, Loader2, Star, 
   DollarSign, BarChart3, Layers, Zap, Info, RotateCcw, Download,
-  Globe2, CheckCircle2, TrendingUp, FolderPlus, FolderKanban
+  Globe2, CheckCircle2, TrendingUp, FolderPlus, FolderKanban,
+  Compass, Award, Lightbulb, ChevronDown, ChevronUp, X
 } from 'lucide-react';
 import { StatusBadge } from '@/components/data/StatusBadge';
 import { api } from '@/lib/api';
+import { ScoutedWinningTopic } from '@/lib/types';
 
 const QUICK_SUGGESTIONS = [
   'kids book',
@@ -31,10 +33,77 @@ export default function DashboardPage() {
   const [isAddingProject, setIsAddingProject] = useState(false);
   const [isProjectAdded, setIsProjectAdded] = useState(false);
 
+  // AI Golden Opportunity Scout States
+  const [isScoutOpen, setIsScoutOpen] = useState(true);
+  const [isScouting, setIsScouting] = useState(false);
+  const [scoutedTopics, setScoutedTopics] = useState<ScoutedWinningTopic[]>([]);
+  const [scoutCategory, setScoutCategory] = useState('ALL');
+  const [detailedTopicModal, setDetailedTopicModal] = useState<ScoutedWinningTopic | null>(null);
+  const [savedScoutId, setSavedScoutId] = useState<string | null>(null);
+
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const handleScoutWinningTopics = async (category: string = 'ALL') => {
+    setIsScouting(true);
+    setScoutCategory(category);
+    try {
+      const res = await api.scoutWinningTopics(category, marketplace === 'GLOBAL' ? 'US' : marketplace);
+      setScoutedTopics(res.topics || []);
+      setIsScoutOpen(true);
+    } catch (e) {
+      console.error('Failed to scout topics:', e);
+    }
+    setIsScouting(false);
+  };
+
+  const handleSaveScoutToProject = async (topic: ScoutedWinningTopic) => {
+    try {
+      await api.createProject({
+        title: topic.title,
+        niche: topic.niche,
+        marketplace: marketplace === 'GLOBAL' ? 'US' : marketplace,
+        target_audience: topic.target_audience,
+        status: 'PENDING',
+        seo_data_json: JSON.stringify({
+          keyword: topic.niche,
+          seo_title: topic.title,
+          recommended_price_sweetspot: topic.recommended_price,
+          feasibility_verdict: topic.competition_level,
+          feasibility_title: `${topic.competition_level === 'VERY_EASY' ? 'Very Easy to Rank' : 'Easy to Rank'} (${topic.competition_score}/100)`,
+          avg_reviews: topic.avg_competitor_reviews,
+          concepts: [{
+            title_concept: topic.title,
+            target_audience: topic.target_audience,
+            differentiation_hook: topic.why_suggested
+          }],
+          why_points: topic.why_points,
+          how_to_rank_steps: topic.how_to_rank_steps
+        }),
+        cover_prompt_json: JSON.stringify({
+          tip: topic.cover_design_tip,
+          interior_spec: topic.interior_spec
+        }),
+        ranking_strategy_json: JSON.stringify({
+          steps: topic.how_to_rank_steps,
+          profit: topic.profit_potential_monthly,
+          royalty: topic.estimated_royalty_per_sale
+        }),
+        notes: `AI Scout Recommendation for "${topic.niche}".\nProfit Potential: ${topic.profit_potential_monthly} (${topic.estimated_royalty_per_sale} royalty/copy).\n\nWhy Suggested: ${topic.why_suggested}\n\nHow to Rank:\n${topic.how_to_rank_steps.join('\n')}`
+      });
+      setSavedScoutId(topic.id);
+      setTimeout(() => setSavedScoutId(null), 4000);
+    } catch (e) {
+      console.error('Failed to save scouted project:', e);
+    }
+  };
+
+  const handleResearchScoutTopic = (topic: ScoutedWinningTopic) => {
+    setKeyword(topic.niche);
+    handleRunMasterResearch(topic.niche);
   };
 
   const handleAddToUpcomingProject = async () => {
@@ -170,6 +239,200 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ✨ AI GOLDEN OPPORTUNITY SCOUT (AUTOMATIC WINNING TOPIC ADVISOR) */}
+      <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-r from-amber-950/20 via-slate-900/90 to-indigo-950/20 p-6 shadow-xl space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+              <Sparkles className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base md:text-lg font-extrabold text-white">
+                  ✨ AI Golden Niche Scout: What Book Should I Publish Right Now?
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/30">
+                  Easy Rank + High Profit
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                কী বই বানাবেন বুঝতে পারছেন না? AI সম্পূর্ণ অ্যামাজন ডেটা ও সার্চ ট্রেন্ড এনালাইজ করে এমন টপিক সাজেস্ট করবে—যেখানে <b>কম্পিটিটরদের রিভিউ কম (সহজে ১ম পেজে র‍্যাঙ্ক)</b> এবং <b>মুনাফা সর্বোচ্চ ($1,500 - $4,500+/মাসিক)</b>।
+              </p>
+            </div>
+          </div>
+
+          {/* Action Trigger */}
+          <button
+            onClick={() => handleScoutWinningTopics(scoutCategory)}
+            disabled={isScouting}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-bold text-xs transition-all shadow-lg shadow-amber-500/25 hover:scale-[1.02] shrink-0 disabled:opacity-50"
+          >
+            {isScouting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                <span>AI Scouting Amazon Trends...</span>
+              </>
+            ) : (
+              <>
+                <Compass className="w-4 h-4 text-slate-950" />
+                <span>Scout Winning Topics Now ✨</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Categories Bar & Toggle */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
+          <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+            <span className="text-[11px] text-slate-400 font-semibold mr-1">Category Filter:</span>
+            {[
+              { id: 'ALL', label: '🌟 All High-Profit Niches' },
+              { id: 'ACTIVITY', label: '🧩 Activity Books' },
+              { id: 'COLORING', label: '🎨 Coloring Books' },
+              { id: 'JOURNAL', label: '📖 Guided Journals' },
+              { id: 'LOGBOOK', label: '📊 Logbooks & Ledgers' },
+            ].map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => {
+                  setScoutCategory(cat.id);
+                  handleScoutWinningTopics(cat.id);
+                }}
+                className={`px-3 py-1 rounded-xl text-[11px] font-semibold transition-all ${
+                  scoutCategory === cat.id
+                    ? 'bg-amber-500 text-slate-950 font-bold'
+                    : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+          {scoutedTopics.length > 0 && (
+            <button
+              onClick={() => setIsScoutOpen(!isScoutOpen)}
+              className="text-xs text-sky-400 hover:underline flex items-center gap-1 font-semibold"
+            >
+              <span>{isScoutOpen ? 'Hide Scouted Books' : `Show ${scoutedTopics.length} Scouted Books`}</span>
+              {isScoutOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          )}
+        </div>
+
+        {/* SCOUTED TOPICS GRID */}
+        {isScouting ? (
+          <div className="py-16 text-center space-y-3 bg-slate-950/60 rounded-2xl border border-slate-800">
+            <Loader2 className="w-8 h-8 text-amber-400 animate-spin mx-auto" />
+            <p className="text-xs text-slate-300 font-medium">
+              AI scanning live Amazon completions, low review barriers (&lt;50 reviews), and royalty profit margins...
+            </p>
+          </div>
+        ) : isScoutOpen && scoutedTopics.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 animate-in fade-in">
+            {scoutedTopics.map((topic) => {
+              const isSaved = savedScoutId === topic.id;
+              return (
+                <div
+                  key={topic.id}
+                  className="glass-panel rounded-3xl p-5 border border-amber-500/20 bg-slate-950/80 hover:border-amber-500/40 transition-all flex flex-col justify-between space-y-4 shadow-lg group"
+                >
+                  <div className="space-y-3">
+                    {/* Badge Row */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="px-2.5 py-0.5 rounded-full bg-slate-800 text-[10px] font-bold text-slate-300 border border-slate-700">
+                        {topic.category}
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1">
+                        <Award className="w-3 h-3 text-emerald-400" />
+                        <span>{topic.competition_level.replace('_', ' ')}</span>
+                      </span>
+                    </div>
+
+                    {/* Title */}
+                    <h3 className="text-sm font-extrabold text-white leading-snug line-clamp-2 group-hover:text-amber-300 transition-colors">
+                      {topic.title}
+                    </h3>
+
+                    {/* Target Audience */}
+                    <p className="text-[11px] text-slate-400 line-clamp-1">
+                      Target: <b className="text-slate-300">{topic.target_audience}</b>
+                    </p>
+
+                    {/* Profit & Review metrics */}
+                    <div className="grid grid-cols-2 gap-2 bg-slate-900/90 p-2.5 rounded-2xl border border-slate-800 text-[11px]">
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-slate-500 block">Earning Potential</span>
+                        <span className="font-extrabold text-emerald-400">{topic.profit_potential_monthly}</span>
+                        <span className="text-[9px] text-slate-400 block">{topic.recommended_price} ({topic.estimated_royalty_per_sale}/sale)</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-slate-500 block">Review Barrier</span>
+                        <span className="font-extrabold text-amber-400">Avg {topic.avg_competitor_reviews} reviews</span>
+                        <span className="text-[9px] text-emerald-400 block font-semibold">Easy to Beat</span>
+                      </div>
+                    </div>
+
+                    {/* 2 Key Proof Points */}
+                    <div className="space-y-1 text-[11px] text-slate-300">
+                      {topic.why_points.slice(0, 2).map((pt, i) => (
+                        <div key={i} className="flex items-start gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                          <span className="line-clamp-1">{pt}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ACTION BUTTONS (3 Clear Actions) */}
+                  <div className="space-y-2 pt-3 border-t border-slate-800/80">
+                    <button
+                      onClick={() => setDetailedTopicModal(topic)}
+                      className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                      <span>Why This &amp; How to Rank (বিস্তারিত)</span>
+                    </button>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => handleResearchScoutTopic(topic)}
+                        className="py-2 px-2.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/30 text-indigo-200 text-[11px] font-bold flex items-center justify-center gap-1 transition-all"
+                      >
+                        <Search className="w-3 h-3 text-indigo-400" />
+                        <span>Run Research</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleSaveScoutToProject(topic)}
+                        disabled={isSaved}
+                        className={`py-2 px-2.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-all ${
+                          isSaved
+                            ? 'bg-emerald-500 text-slate-950 font-black'
+                            : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
+                        }`}
+                      >
+                        {isSaved ? (
+                          <>
+                            <CheckCircle2 className="w-3 h-3 text-slate-950" />
+                            <span>Saved!</span>
+                          </>
+                        ) : (
+                          <>
+                            <FolderPlus className="w-3 h-3 text-slate-950" />
+                            <span>Add Project</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
 
       {/* LOADING STATE INDICATOR */}
@@ -899,6 +1162,165 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* DETAILED TOPIC STRATEGY MODAL ("কেন সাজেস্ট করা হলো এবং কীভাবে র‍্যাঙ্ক করবো") */}
+      {detailedTopicModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-extrabold text-white line-clamp-1">{detailedTopicModal.title}</h2>
+                  <span className="text-[11px] text-amber-400 font-medium">Niche: {detailedTopicModal.niche} • {detailedTopicModal.category}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setDetailedTopicModal(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto space-y-5 text-xs text-slate-300">
+              {/* Financial Snapshot */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Monthly Profit Est.</span>
+                  <span className="text-sm font-black text-emerald-400">{detailedTopicModal.profit_potential_monthly}</span>
+                </div>
+                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Recommended Price</span>
+                  <span className="text-sm font-black text-white">{detailedTopicModal.recommended_price}</span>
+                  <span className="text-[10px] text-slate-400 block">{detailedTopicModal.estimated_royalty_per_sale} royalty/copy</span>
+                </div>
+                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Competitor Barrier</span>
+                  <span className="text-sm font-black text-amber-400">Avg {detailedTopicModal.avg_competitor_reviews} reviews</span>
+                  <span className="text-[10px] text-emerald-400 block font-semibold">{detailedTopicModal.competition_level}</span>
+                </div>
+              </div>
+
+              {/* WHY THIS WAS SUGGESTED */}
+              <div className="glass-panel p-4 rounded-2xl border border-slate-800 space-y-3 bg-slate-950/40">
+                <div className="flex items-center gap-2 text-white font-bold text-xs">
+                  <Lightbulb className="w-4 h-4 text-amber-400" />
+                  <span>Why This Book Was Suggested (কেন এই বইটি সাজেস্ট করা হলো?):</span>
+                </div>
+                <p className="text-slate-200 leading-relaxed text-xs">
+                  {detailedTopicModal.why_suggested}
+                </p>
+                <div className="space-y-1.5 pt-1">
+                  {detailedTopicModal.why_points.map((pt, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-[11px] text-slate-300">
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <span>{pt}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* HOW TO RANK #1 STEP BY STEP ROADMAP */}
+              <div className="glass-panel p-4 rounded-2xl border border-slate-800 space-y-3 bg-slate-950/40">
+                <div className="flex items-center gap-2 text-white font-bold text-xs">
+                  <Trophy className="w-4 h-4 text-amber-400" />
+                  <span>How to Rank #1 on Amazon (কীভাবে ১ম পেজে র‍্যাঙ্ক করবেন?):</span>
+                </div>
+                <div className="space-y-2">
+                  {detailedTopicModal.how_to_rank_steps.map((step, idx) => (
+                    <div key={idx} className="flex items-start gap-2.5 bg-slate-950 p-2.5 rounded-xl border border-slate-800/80">
+                      <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                        {idx + 1}
+                      </span>
+                      <span className="text-[11px] text-slate-200 leading-relaxed">{step}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* BOOK SPECS & COVER PSYCHOLOGY */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">🎨 Cover Design Psychology</span>
+                  <p className="text-[11px] text-slate-200 leading-relaxed">{detailedTopicModal.cover_design_tip}</p>
+                </div>
+                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">📐 Recommended Interior Specs</span>
+                  <p className="text-[11px] text-slate-200 leading-relaxed">{detailedTopicModal.interior_spec}</p>
+                </div>
+              </div>
+
+              {/* HIGH-VALUE TARGET KEYWORDS */}
+              {detailedTopicModal.target_keywords && detailedTopicModal.target_keywords.length > 0 && (
+                <div className="glass-panel p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                  <span className="text-xs font-bold text-white block">🔑 High-Search Target Keywords (কপি করে ব্যবহার করুন):</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {detailedTopicModal.target_keywords.map((kw, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleCopy(kw, `kw_${idx}`)}
+                        className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-[11px] text-slate-200 flex items-center gap-1.5 transition-colors"
+                      >
+                        <span>{kw}</span>
+                        {copiedKey === `kw_${idx}` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950 flex flex-wrap items-center justify-between gap-3">
+              <button
+                onClick={() => setDetailedTopicModal(null)}
+                className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-xs"
+              >
+                Close
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const t = detailedTopicModal;
+                    setDetailedTopicModal(null);
+                    handleResearchScoutTopic(t);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-indigo-600/20"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Run Live Master Research</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    handleSaveScoutToProject(detailedTopicModal);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/20"
+                >
+                  {savedScoutId === detailedTopicModal.id ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-slate-950" />
+                      <span>Saved to Upcoming Projects!</span>
+                    </>
+                  ) : (
+                    <>
+                      <FolderPlus className="w-3.5 h-3.5 text-slate-950" />
+                      <span>Save to Upcoming Projects</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

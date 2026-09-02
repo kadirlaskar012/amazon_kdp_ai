@@ -28,6 +28,8 @@ export const api = {
   // 1-Click Master Research
   runMasterBlueprint: (keyword: string, marketplace: string = 'US') =>
     fetchJson<any>('/master/blueprint', { method: 'POST', body: JSON.stringify({ keyword, marketplace }) }),
+  scoutWinningTopics: (category: string = 'ALL', marketplace: string = 'US') =>
+    fetchJson<any>('/master/scout-topics', { method: 'POST', body: JSON.stringify({ category, marketplace }) }),
 
   // Marketplaces & Health
   getMarketplaces: () => fetchJson<any[]>('/marketplaces'),
